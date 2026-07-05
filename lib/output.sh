@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-RED="\033[31m"
+RED="\033[91m"
 GREEN="\033[92m"
-YELLOW="\033[33m"
-CYAN="\033[36m"
+YELLOW="\033[93m"
+CYAN="\033[96m"
 RESET="\033[0m"
 
 pause(){
