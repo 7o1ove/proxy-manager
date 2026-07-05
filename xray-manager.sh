@@ -649,6 +649,14 @@ show_fail2ban_status(){
     pause
 }
 
+restart_fail2ban(){
+    header
+    info "正在重启 Fail2Ban..."
+    systemctl restart fail2ban
+    success "Fail2Ban 已重启。"
+    pause
+}
+
 uninstall_fail2ban(){
     header
     warning "正在卸载 Fail2Ban..."
@@ -665,7 +673,8 @@ fail2ban_menu(){
         header
         menu_item "1" "安装 Fail2Ban"
         menu_item "2" "查看 SSHD 状态"
-        menu_item "3" "卸载 Fail2Ban"
+        menu_item "3" "重启 Fail2Ban"
+        menu_item "4" "卸载 Fail2Ban"
         echo
         menu_item "0" "返回"
         echo
@@ -675,7 +684,8 @@ fail2ban_menu(){
         case "$choice" in
             1) install_fail2ban ;;
             2) show_fail2ban_status ;;
-            3) uninstall_fail2ban ;;
+            3) restart_fail2ban ;;
+            4) uninstall_fail2ban ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
         esac
