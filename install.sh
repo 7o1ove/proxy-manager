@@ -1,45 +1,37 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
 
-set -e
-
-REPO="https://github.com/7o1ove/Xray-manager.git"
-INSTALL_DIR="/opt/Xray-manager"
+REPO="https://github.com/你的用户名/Xray-manager.git"
+INSTALL_DIR="/root/xray-manager"
 
 echo "=================================="
-echo "   Xray-manager Installer"
+echo "Installing Xray Manager..."
 echo "=================================="
 
-# 1. 检查 root
-if [ "$(id -u)" -ne 0 ]; then
-    echo "❌ Please run as root"
-    exit 1
-fi
-
-# 2. 更新系统 & 安装依赖
-echo "==> Installing dependencies..."
-apt update -y
-apt install -y git curl
-
-# 3. 清理旧目录
+# 1. 如果目录存在就更新，不存在就clone
 if [ -d "$INSTALL_DIR" ]; then
-    echo "==> Removing old installation..."
-    rm -rf "$INSTALL_DIR"
+    echo "[+] Directory exists, updating..."
+    cd "$INSTALL_DIR"
+    git pull
+else
+    echo "[+] Cloning repo..."
+    git clone "$REPO" "$INSTALL_DIR"
 fi
 
-# 4. clone 项目
-echo "==> Cloning repository..."
-git clone "$REPO" "$INSTALL_DIR"
-
+# 2. 进入目录
 cd "$INSTALL_DIR"
 
-# 5. 授权脚本执行权限
-chmod +x *.sh
-chmod +x core/*.sh system/*.sh
+# 3. 给执行权限
+chmod +x *.sh 2>/dev/null || true
+chmod +x core/*.sh 2>/dev/null || true
+chmod +x system/*.sh 2>/dev/null || true
 
-# 6. 启动主程序
+# 4. 启动主程序
+echo ""
 echo "=================================="
 echo "Installation completed!"
-echo "Starting Xray-manager..."
+echo "Starting Xray Manager..."
 echo "=================================="
+echo ""
 
-bash xray-manager.sh
+bash manager.sh
