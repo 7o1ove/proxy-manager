@@ -34,4 +34,4 @@ echo "Starting Xray Manager..."
 echo "=================================="
 echo ""
 
-bash manager.sh
+bash xray-manager.sh
