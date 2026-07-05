@@ -1,65 +1,26 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-RED="\033[31m"
-GREEN="\033[92m"
-YELLOW="\033[33m"
-CYAN="\033[36m"
-RESET="\033[0m"
-
-divider(){
-    local color="${1:-$CYAN}"
-    local char="${2:-=}"
-    local width="${3:-34}"
-    local line
-
-    line=$(printf "%${width}s" "")
-    line="${line// /$char}"
-    echo -e "${color}${line}${RESET}"
-}
-
-banner(){
-    local text="$1"
-    local color="${2:-$CYAN}"
-
-    divider "$color"
-    echo -e "${color}${text}${RESET}"
-    divider "$color"
-}
-
-info(){
-    echo -e "${CYAN}==> $1${RESET}"
-}
-
-success(){
-    echo
-    echo -e "${GREEN}$1${RESET}"
-}
-
-warning(){
-    echo
-    echo -e "${YELLOW}$1${RESET}"
-}
-
 REPO="https://github.com/7o1ove/xray-manager.git"
 INSTALL_DIR="/root/xray-manager"
 COMMAND_NAME="7o1ove"
 COMMAND_PATH="/usr/local/bin/${COMMAND_NAME}"
 
-banner "Installing Xray Manager..." "$CYAN"
+echo "Installing Xray Manager..."
 
 if [ -d "$INSTALL_DIR/.git" ]; then
-    warning "Directory exists, updating..."
+    echo
+    echo "Directory exists, updating..."
 
     cd "$INSTALL_DIR"
 
-    info "Force syncing with remote..."
+    echo "==> Force syncing with remote..."
     git fetch origin
     git reset --hard origin/main
     git clean -fd
 
 else
-    info "Cloning repo..."
+    echo "==> Cloning repo..."
     git clone "$REPO" "$INSTALL_DIR"
 fi
 
@@ -70,6 +31,9 @@ chmod +x core/*.sh 2>/dev/null || true
 chmod +x system/*.sh 2>/dev/null || true
 chmod +x config/*.sh 2>/dev/null || true
 chmod +x lib/*.sh 2>/dev/null || true
+
+# shellcheck source=/root/xray-manager/lib/output.sh
+source "${INSTALL_DIR}/lib/output.sh"
 
 info "Creating global command: ${COMMAND_NAME}"
 
