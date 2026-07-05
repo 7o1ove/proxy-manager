@@ -8,10 +8,10 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="/root/xray-manager"
 
-SYSTEM_SCRIPT="${SCRIPT_DIR}/01-system.sh"
-INSTALL_SCRIPT="${SCRIPT_DIR}/02-xray-core.sh"
-VLESS_SCRIPT="${SCRIPT_DIR}/03-vless.sh"
-SS_SCRIPT="${SCRIPT_DIR}/04-shadowsocks.sh"
+SYSTEM_SCRIPT="${SCRIPT_DIR}/system/01-system.sh"
+INSTALL_SCRIPT="${SCRIPT_DIR}/core/02-xray-core.sh"
+VLESS_SCRIPT="${SCRIPT_DIR}/core/03-vless.sh"
+SS_SCRIPT="${SCRIPT_DIR}/core/04-shadowsocks.sh"
 
 CONFIG_DIR="/usr/local/etc/xray"
 CLIENT_DIR="${CONFIG_DIR}/client"
