@@ -249,7 +249,7 @@ run_vps_test(){
     apt update
     apt install wget curl -y
     bash <(curl -sL https://run.NodeQuality.com)
-    pause
+    exit 0
 }
 
 dd_debian(){
@@ -266,6 +266,7 @@ dd_debian(){
     apt install wget curl -y
     curl -O https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh
     bash reinstall.sh debian
+    exit 0
 }
 
 show_ssh_status(){
