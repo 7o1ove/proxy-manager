@@ -26,12 +26,10 @@ curl -fsSL \
   -o /tmp/xray-manager-install.sh \
   https://raw.githubusercontent.com/7o1ove/xray-manager/main/install.sh
 
-sha256sum /tmp/xray-manager-install.sh
-less /tmp/xray-manager-install.sh
 bash /tmp/xray-manager-install.sh
 ```
 
-出于安全考虑，本项目不提供 `curl install.sh | bash` 或 `bash <(curl ...)` 这类无法先审阅内容的一键安装命令。建议先下载脚本，确认内容和哈希后，再手动执行。
+出于安全考虑，本项目不提供 `curl install.sh | bash` 或 `bash <(curl ...)` 这类把下载内容直接交给 shell 执行的一键命令。上面的方式会先把安装脚本保存到本地，再执行脚本。
 
 安装完成后，可以直接输入：
 

@@ -17,19 +17,6 @@ download_remote_script(){
     chmod 600 "$target"
     path_kv "Downloaded script :" "$target"
 
-    if command -v sha256sum >/dev/null 2>&1; then
-        kv "SHA256            :" "$(sha256sum "$target" | awk '{print $1}')"
-    fi
-
-    warning "Please review this script before running it:"
-    path_value "less $target"
-
-    if ! confirm_action "Run downloaded ${name} script now?"; then
-        warning "Cancelled. The downloaded script was kept for review:"
-        path_value "$target"
-        return 1
-    fi
-
     REMOTE_SCRIPT_PATH="$target"
 }
 
