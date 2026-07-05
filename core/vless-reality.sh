@@ -35,6 +35,7 @@ ensure_dependencies(){
 check_reality_target(){
     local host="$1"
     local http_version=""
+    local curl_output=""
 
     info "正在检查 Reality 目标站点..."
 
@@ -55,22 +56,31 @@ check_reality_target(){
         return
     fi
 
+    curl_output=$(
+        curl -Iv --http2 --tlsv1.3 --tls-max 1.3 \
+            --connect-timeout 5 --max-time 10 \
+            "https://${host}" 2>&1 || true
+    )
+
     http_version=$(
-        curl -sSI --http2 --connect-timeout 5 --max-time 10 \
+        curl -sSI --http2 --tlsv1.3 --tls-max 1.3 \
+            --connect-timeout 5 --max-time 10 \
             -o /dev/null \
             -w "%{http_version}" \
             "https://${host}" || true
     )
 
-    if [[ "$http_version" == "2" ]]; then
-        success "Reality 目标站点检查通过：HTTPS / HTTP2 可用。"
+    if echo "$curl_output" | grep -qi "TLSv1\.3" && [[ "$http_version" == "2" ]]; then
+        success "Reality 目标站点检查通过：TLS 1.3 / HTTP2 可用。"
         return
     fi
 
-    if [[ -n "$http_version" ]]; then
-        warning "目标站点可访问，但未协商到 HTTP/2，当前 HTTP 版本：${http_version}"
-    else
-        warning "目标站点检查失败：无法通过 HTTPS / HTTP2 访问 https://${host}"
+    if ! echo "$curl_output" | grep -qi "TLSv1\.3"; then
+        warning "目标站点未通过 TLS 1.3 检查。"
+    fi
+
+    if [[ "$http_version" != "2" ]]; then
+        warning "目标站点未通过 HTTP/2 检查。"
     fi
 
     if ! confirm_action "仍然继续配置 VLESS Reality 吗？"; then
