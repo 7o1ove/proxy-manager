@@ -46,8 +46,12 @@ valid_port(){
 
 split_items(){
     local input="$1"
-    input=${input//,/ }
     printf '%s\n' $input
+}
+
+reject_comma_separator(){
+    [[ "$1" == *","* ]] && error "请使用空格分隔，不要使用逗号。" && pause && return 1
+    return 0
 }
 
 current_ssh_port(){
@@ -475,8 +479,9 @@ ufw_batch_add_port(){
     local input
     local port
 
-    read -r -p "$(prompt_text "请输入要允许的端口（多个用空格或逗号分隔）: ")" input
+    read -r -p "$(prompt_text "请输入要允许的端口（多个用空格分隔）: ")" input
     [[ -z "$input" ]] && error "端口不能为空。" && pause && return
+    reject_comma_separator "$input" || return
 
     for port in $(split_items "$input"); do
         valid_port "$port" || { error "端口无效: ${port}"; pause; return; }
@@ -496,8 +501,9 @@ ufw_batch_delete_port(){
     local input
     local port
 
-    read -r -p "$(prompt_text "请输入要删除的端口（多个用空格或逗号分隔）: ")" input
+    read -r -p "$(prompt_text "请输入要删除的端口（多个用空格分隔）: ")" input
     [[ -z "$input" ]] && error "端口不能为空。" && pause && return
+    reject_comma_separator "$input" || return
 
     for port in $(split_items "$input"); do
         valid_port "$port" || { error "端口无效: ${port}"; pause; return; }
@@ -517,8 +523,9 @@ ufw_batch_add_ip(){
     local input
     local ip
 
-    read -r -p "$(prompt_text "请输入要允许的 IP/CIDR（多个用空格或逗号分隔）: ")" input
+    read -r -p "$(prompt_text "请输入要允许的 IP/CIDR（多个用空格分隔）: ")" input
     [[ -z "$input" ]] && error "IP 不能为空。" && pause && return
+    reject_comma_separator "$input" || return
 
     for ip in $(split_items "$input"); do
         [[ "$ip" =~ ^[0-9]+$ ]] && error "这是端口，不是 IP: ${ip}" && pause && return
@@ -537,8 +544,9 @@ ufw_batch_delete_ip(){
     local input
     local ip
 
-    read -r -p "$(prompt_text "请输入要删除的 IP/CIDR（多个用空格或逗号分隔）: ")" input
+    read -r -p "$(prompt_text "请输入要删除的 IP/CIDR（多个用空格分隔）: ")" input
     [[ -z "$input" ]] && error "IP 不能为空。" && pause && return
+    reject_comma_separator "$input" || return
 
     for ip in $(split_items "$input"); do
         [[ "$ip" =~ ^[0-9]+$ ]] && error "这是端口，不是 IP: ${ip}" && pause && return
@@ -588,10 +596,10 @@ ufw_menu(){
         header
         menu_item "1" "安装 UFW"
         menu_item "2" "查看 UFW 状态"
-        menu_item "3" "批量允许端口"
-        menu_item "4" "批量删除端口"
-        menu_item "5" "批量允许 IP"
-        menu_item "6" "批量删除 IP"
+        menu_item "3" "允许端口"
+        menu_item "4" "删除端口"
+        menu_item "5" "允许 IP"
+        menu_item "6" "删除 IP"
         menu_item "7" "重启 UFW"
         menu_item "8" "卸载 UFW"
         echo
@@ -649,14 +657,6 @@ show_fail2ban_status(){
     pause
 }
 
-restart_fail2ban(){
-    header
-    info "正在重启 Fail2Ban..."
-    systemctl restart fail2ban
-    success "Fail2Ban 已重启。"
-    pause
-}
-
 uninstall_fail2ban(){
     header
     warning "正在卸载 Fail2Ban..."
@@ -668,12 +668,29 @@ uninstall_fail2ban(){
     pause
 }
 
+fail2ban_unban_ip(){
+    header
+    local ip
+
+    read -r -p "$(prompt_text "请输入要解封的 IP: ")" ip
+
+    if [[ -z "$ip" ]]; then
+        error "IP 不能为空。"
+        pause
+        return
+    fi
+
+    fail2ban-client set sshd unbanip "$ip"
+    success "已从 sshd jail 解封 IP: ${ip}"
+    pause
+}
+
 fail2ban_menu(){
     while true; do
         header
         menu_item "1" "安装 Fail2Ban"
         menu_item "2" "查看 SSHD 状态"
-        menu_item "3" "重启 Fail2Ban"
+        menu_item "3" "解封 SSHD IP"
         menu_item "4" "卸载 Fail2Ban"
         echo
         menu_item "0" "返回"
@@ -684,7 +701,7 @@ fail2ban_menu(){
         case "$choice" in
             1) install_fail2ban ;;
             2) show_fail2ban_status ;;
-            3) restart_fail2ban ;;
+            3) fail2ban_unban_ip ;;
             4) uninstall_fail2ban ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
