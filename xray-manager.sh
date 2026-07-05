@@ -395,6 +395,7 @@ ufw_add_ip(){
     header
     read -r -p "$(prompt_text "请输入允许的 IP: ")" ip
     [[ -z "$ip" ]] && error "IP 不能为空。" && pause && return
+    [[ "$ip" =~ ^[0-9]+$ ]] && error "这是端口，不是 IP。请使用“开放端口”。" && pause && return
     ufw allow from "$ip"
     success "已允许 IP: ${ip}"
     pause
@@ -404,8 +405,33 @@ ufw_delete_ip(){
     header
     read -r -p "$(prompt_text "请输入要删除的 IP: ")" ip
     [[ -z "$ip" ]] && error "IP 不能为空。" && pause && return
+    [[ "$ip" =~ ^[0-9]+$ ]] && error "这是端口，不是 IP。请使用“删除端口”。" && pause && return
     ufw --force delete allow from "$ip" || true
     success "已删除 IP 规则: ${ip}"
+    pause
+}
+
+ufw_add_port(){
+    header
+    read -r -p "$(prompt_text "请输入要开放的端口: ")" port
+    [[ -z "$port" ]] && error "端口不能为空。" && pause && return
+    valid_port "$port" || { error "端口无效。"; pause; return; }
+
+    ufw allow "${port}/tcp"
+    ufw allow "${port}/udp"
+    success "已开放端口: ${port}/tcp 和 ${port}/udp"
+    pause
+}
+
+ufw_delete_port(){
+    header
+    read -r -p "$(prompt_text "请输入要删除的端口: ")" port
+    [[ -z "$port" ]] && error "端口不能为空。" && pause && return
+    valid_port "$port" || { error "端口无效。"; pause; return; }
+
+    ufw --force delete allow "${port}/tcp" || true
+    ufw --force delete allow "${port}/udp" || true
+    success "已删除端口规则: ${port}/tcp 和 ${port}/udp"
     pause
 }
 
@@ -444,11 +470,13 @@ ufw_menu(){
     while true; do
         header
         menu_item "1" "安装 UFW"
-        menu_item "2" "增加 IP"
-        menu_item "3" "删除 IP"
-        menu_item "4" "重启 UFW"
-        menu_item "5" "查看 UFW 状态"
-        menu_item "6" "卸载 UFW"
+        menu_item "2" "开放端口"
+        menu_item "3" "删除端口"
+        menu_item "4" "允许 IP"
+        menu_item "5" "删除 IP"
+        menu_item "6" "重启 UFW"
+        menu_item "7" "查看 UFW 状态"
+        menu_item "8" "卸载 UFW"
         echo
         menu_item "0" "返回"
         echo
@@ -457,11 +485,13 @@ ufw_menu(){
 
         case "$choice" in
             1) install_ufw ;;
-            2) ufw_add_ip ;;
-            3) ufw_delete_ip ;;
-            4) restart_ufw ;;
-            5) show_ufw_status ;;
-            6) uninstall_ufw ;;
+            2) ufw_add_port ;;
+            3) ufw_delete_port ;;
+            4) ufw_add_ip ;;
+            5) ufw_delete_ip ;;
+            6) restart_ufw ;;
+            7) show_ufw_status ;;
+            8) uninstall_ufw ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
         esac
@@ -711,9 +741,9 @@ tools_menu(){
         header
         menu_item "1" "VPS 测试"
         menu_item "2" "DD 系统 Debian"
-        menu_item "3" "SSH 端口与密钥管理"
-        menu_item "4" "UFW 防火墙管理"
-        menu_item "5" "Fail2Ban 管理"
+        menu_item "3" "UFW 防火墙管理"
+        menu_item "4" "Fail2Ban 管理"
+        menu_item "5" "SSH 端口与密钥管理"
         menu_item "6" "虚拟内存管理"
         menu_item "7" "时区调整"
         menu_item "8" "系统调优"
@@ -728,9 +758,9 @@ tools_menu(){
         case "$choice" in
             1) run_vps_test ;;
             2) dd_debian ;;
-            3) ssh_menu ;;
-            4) ufw_menu ;;
-            5) fail2ban_menu ;;
+            3) ufw_menu ;;
+            4) fail2ban_menu ;;
+            5) ssh_menu ;;
             6) swap_menu ;;
             7) set_timezone ;;
             8) system_tuning ;;
