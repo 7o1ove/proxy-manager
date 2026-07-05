@@ -179,6 +179,8 @@ show_client_info(){
             fi
             if [[ "$line" == "Mihomo / Clash:" ]]; then
                 echo
+                divider "$CYAN" "-"
+                echo
                 label " Mihomo / Clash Proxy Item (copy)"
                 echo
                 continue
@@ -200,6 +202,8 @@ show_client_info(){
                 continue
             fi
             if [[ "$line" == "Mihomo / Clash:" ]]; then
+                echo
+                divider "$CYAN" "-"
                 echo
                 label " Mihomo / Clash Proxy Item (copy)"
                 echo
@@ -584,12 +588,12 @@ ufw_menu(){
     while true; do
         header
         menu_item "1" "安装 UFW"
-        menu_item "2" "批量允许端口"
-        menu_item "3" "批量删除端口"
-        menu_item "4" "批量允许 IP"
-        menu_item "5" "批量删除 IP"
-        menu_item "6" "重启 UFW"
-        menu_item "7" "查看 UFW 状态"
+        menu_item "2" "查看 UFW 状态"
+        menu_item "3" "批量允许端口"
+        menu_item "4" "批量删除端口"
+        menu_item "5" "批量允许 IP"
+        menu_item "6" "批量删除 IP"
+        menu_item "7" "重启 UFW"
         menu_item "8" "卸载 UFW"
         echo
         menu_item "0" "返回"
@@ -599,12 +603,12 @@ ufw_menu(){
 
         case "$choice" in
             1) install_ufw ;;
-            2) ufw_batch_add_port ;;
-            3) ufw_batch_delete_port ;;
-            4) ufw_batch_add_ip ;;
-            5) ufw_batch_delete_ip ;;
-            6) restart_ufw ;;
-            7) show_ufw_status ;;
+            2) show_ufw_status ;;
+            3) ufw_batch_add_port ;;
+            4) ufw_batch_delete_port ;;
+            5) ufw_batch_add_ip ;;
+            6) ufw_batch_delete_ip ;;
+            7) restart_ufw ;;
             8) uninstall_ufw ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
@@ -726,8 +730,8 @@ swap_menu(){
     while true; do
         header
         menu_item "1" "安装 1G 虚拟内存"
-        menu_item "2" "删除虚拟内存"
-        menu_item "3" "查看虚拟内存状态"
+        menu_item "2" "查看虚拟内存状态"
+        menu_item "3" "删除虚拟内存"
         echo
         menu_item "0" "返回"
         echo
@@ -736,8 +740,8 @@ swap_menu(){
 
         case "$choice" in
             1) install_swap ;;
-            2) delete_swap ;;
-            3) show_swap_status ;;
+            2) show_swap_status ;;
+            3) delete_swap ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
         esac
