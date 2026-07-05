@@ -8,9 +8,9 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="/root/xray-manager"
 
-SYSTEM_SCRIPT="${SCRIPT_DIR}/system/01-system.sh"
-INSTALL_SCRIPT="${SCRIPT_DIR}/core/02-xray-core.sh"
-VLESS_SCRIPT="${SCRIPT_DIR}/core/03-vless.sh"
+SYSTEM_SCRIPT="${SCRIPT_DIR}/system/system.sh"
+INSTALL_SCRIPT="${SCRIPT_DIR}/core/xray-core.sh"
+VLESS_SCRIPT="${SCRIPT_DIR}/core/vless.sh"
 SS_SCRIPT="${SCRIPT_DIR}/core/04-shadowsocks.sh"
 
 CONFIG_DIR="/usr/local/etc/xray"
