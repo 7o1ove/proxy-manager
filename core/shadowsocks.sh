@@ -11,7 +11,6 @@ XRAY_DIR="/usr/local/etc/xray"
 
 PROTOCOL_CONFIG="${XRAY_DIR}/protocols/shadowsocks.json"
 CLIENT_FILE="${XRAY_DIR}/client/shadowsocks.txt"
-MIHOMO_FILE="${XRAY_DIR}/client/shadowsocks-mihomo.yaml"
 
 METHOD="2022-blake3-aes-256-gcm"
 
@@ -108,7 +107,11 @@ fi
 SS_BASE64=$(printf "%s:%s" "$METHOD" "$PASSWORD" | base64 | tr -d '\n')
 SS_LINK="ss://${SS_BASE64}@${SERVER_IP}:${PORT}"
 
-cat > "$MIHOMO_FILE" <<EOF
+cat > "$CLIENT_FILE" <<EOF
+SS Link:
+${SS_LINK}
+
+Mihomo / Clash:
 - name: Shadowsocks
   type: ss
   server: ${SERVER_IP}
@@ -117,14 +120,6 @@ cat > "$MIHOMO_FILE" <<EOF
   password: ${PASSWORD}
   udp: true
 EOF
-
-{
-    echo "SS Link:"
-    echo "$SS_LINK"
-    echo
-    echo "Mihomo / Clash:"
-    cat "$MIHOMO_FILE"
-} > "$CLIENT_FILE"
 
 banner "    Shadowsocks 安装成功" "$GREEN"
 kv "Server IP :" "$SERVER_IP"
@@ -145,11 +140,10 @@ echo
 label " 节点信息文件"
 path_value "$CLIENT_FILE"
 echo
-label " Mihomo / Clash config file"
-path_value "$MIHOMO_FILE"
-echo
 section "Mihomo / Clash" "$GREEN"
 echo
-cat "$MIHOMO_FILE"
+sed -n '/^Mihomo \/ Clash:/,$p' "$CLIENT_FILE" | tail -n +2 | while IFS= read -r line; do
+    value "$line"
+done
 echo
 divider "$GREEN"

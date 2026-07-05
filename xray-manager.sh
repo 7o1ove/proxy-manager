@@ -146,7 +146,7 @@ configure_shadowsocks(){
 uninstall_vless(){
     header
     warning "正在卸载 VLESS Reality..."
-    rm -f "${PROTOCOL_DIR}/vless.json" "${CLIENT_DIR}/vless.txt" "${CLIENT_DIR}/vless-mihomo.yaml"
+    rm -f "${PROTOCOL_DIR}/vless.json" "${CLIENT_DIR}/vless.txt"
     rebuild_or_stop_xray
     pause
 }
@@ -154,7 +154,7 @@ uninstall_vless(){
 uninstall_shadowsocks(){
     header
     warning "正在卸载 Shadowsocks..."
-    rm -f "${PROTOCOL_DIR}/shadowsocks.json" "${CLIENT_DIR}/shadowsocks.txt" "${CLIENT_DIR}/shadowsocks-mihomo.yaml"
+    rm -f "${PROTOCOL_DIR}/shadowsocks.json" "${CLIENT_DIR}/shadowsocks.txt"
     rebuild_or_stop_xray
     pause
 }
@@ -165,15 +165,9 @@ show_client_info(){
     section "VLESS Reality" "$CYAN"
     echo
     if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
-        sed '/^Mihomo \/ Clash:/,$d' "${CLIENT_DIR}/vless.txt" | while IFS= read -r line; do
+        while IFS= read -r line; do
             value "$line"
-        done
-
-        if [[ -f "${CLIENT_DIR}/vless-mihomo.yaml" ]]; then
-            echo
-            label "Mihomo / Clash:"
-            cat "${CLIENT_DIR}/vless-mihomo.yaml"
-        fi
+        done < "${CLIENT_DIR}/vless.txt"
     else
         warning "未配置"
     fi
@@ -182,15 +176,9 @@ show_client_info(){
     section "Shadowsocks" "$CYAN"
     echo
     if [[ -f "${CLIENT_DIR}/shadowsocks.txt" ]]; then
-        sed '/^Mihomo \/ Clash:/,$d' "${CLIENT_DIR}/shadowsocks.txt" | while IFS= read -r line; do
+        while IFS= read -r line; do
             value "$line"
-        done
-
-        if [[ -f "${CLIENT_DIR}/shadowsocks-mihomo.yaml" ]]; then
-            echo
-            label "Mihomo / Clash:"
-            cat "${CLIENT_DIR}/shadowsocks-mihomo.yaml"
-        fi
+        done < "${CLIENT_DIR}/shadowsocks.txt"
     else
         warning "未配置"
     fi
