@@ -258,7 +258,7 @@ Mihomo / Clash:
 EOF
 
 echo
-section "VLESS Link" "$GREEN"
+section "Copy VLESS Link" "$GREEN"
 echo
 value "$VLESS_LINK"
 echo
@@ -271,7 +271,9 @@ echo
 label " 节点信息文件"
 path_value "$CLIENT_FILE"
 echo
-section "Mihomo / Clash" "$GREEN"
+divider "$GREEN"
+echo
+section "Copy Mihomo / Clash Proxy Item" "$GREEN"
 echo
 sed -n '/^Mihomo \/ Clash:/,$p' "$CLIENT_FILE" | tail -n +2 | while IFS= read -r line; do
     value "$line"
