@@ -178,7 +178,7 @@ show_client_info(){
     if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
         while IFS= read -r line; do
             if [[ "$line" == "VLESS Link:" ]]; then
-                label " VLESS Link (copy)"
+                label " VLESS Link"
                 echo
                 continue
             fi
@@ -186,7 +186,7 @@ show_client_info(){
                 echo
                 divider "$CYAN" "-"
                 echo
-                label " Mihomo / Clash Proxy Item (copy)"
+                label " Mihomo / Clash YAML"
                 echo
                 continue
             fi
@@ -202,7 +202,7 @@ show_client_info(){
     if [[ -f "${CLIENT_DIR}/shadowsocks.txt" ]]; then
         while IFS= read -r line; do
             if [[ "$line" == "SS Link:" ]]; then
-                label " Shadowsocks Link (copy)"
+                label " Shadowsocks Link"
                 echo
                 continue
             fi
@@ -210,7 +210,7 @@ show_client_info(){
                 echo
                 divider "$CYAN" "-"
                 echo
-                label " Mihomo / Clash Proxy Item (copy)"
+                label " Mihomo / Clash YAML"
                 echo
                 continue
             fi

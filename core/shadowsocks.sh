@@ -127,7 +127,7 @@ kv "Port      :" "$PORT"
 kv "Method    :" "$METHOD"
 kv "Password  :" "$PASSWORD"
 echo
-label " Shadowsocks Link (copy)"
+label " Shadowsocks Link"
 echo
 value "$SS_LINK"
 echo
@@ -140,7 +140,7 @@ echo
 label " 节点信息文件"
 path_value "$CLIENT_FILE"
 echo
-label " Mihomo / Clash Proxy Item (copy)"
+label " Mihomo / Clash YAML"
 echo
 sed -n '/^Mihomo \/ Clash:/,$p' "$CLIENT_FILE" | tail -n +2 | while IFS= read -r line; do
     value "$line"
