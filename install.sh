@@ -3,8 +3,9 @@ set -Eeuo pipefail
 
 REPO="https://github.com/7o1ove/proxy-manager.git"
 INSTALL_DIR="/root/proxy-manager"
-COMMAND_NAME="proxy-manager"
+COMMAND_NAME="7o1ove"
 COMMAND_PATH="/usr/local/bin/${COMMAND_NAME}"
+LEGACY_COMMAND_PATH="/usr/local/bin/proxy-manager"
 
 echo "Installing Proxy Manager..."
 
@@ -38,6 +39,7 @@ source "${INSTALL_DIR}/lib/output.sh"
 info "Creating global command: ${COMMAND_NAME}"
 
 mkdir -p "$(dirname "$COMMAND_PATH")"
+rm -f "$LEGACY_COMMAND_PATH"
 
 cat > "$COMMAND_PATH" <<EOF
 #!/usr/bin/env bash

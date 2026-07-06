@@ -24,7 +24,7 @@ TIMEZONE="Asia/Hong_Kong"
 header(){
     echo
     divider "$CYAN"
-    echo -e "${CYAN}             Proxy Manager${RESET}"
+    center_line "Proxy Manager" "$WHITE"
     divider "$CYAN"
 }
 
@@ -171,7 +171,7 @@ uninstall_shadowsocks(){
 show_client_info(){
     header
 
-    section "VLESS Reality" "$CYAN"
+    section "VLESS Reality" "$YELLOW"
     echo
     if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
         while IFS= read -r line; do
@@ -195,7 +195,7 @@ show_client_info(){
     fi
 
     echo
-    section "Shadowsocks" "$CYAN"
+    section "Shadowsocks" "$YELLOW"
     echo
     if [[ -f "${CLIENT_DIR}/shadowsocks.txt" ]]; then
         while IFS= read -r line; do
@@ -298,7 +298,7 @@ uninstall_xray_core(){
 
 show_current_status(){
     header
-    section "当前核心状态" "$CYAN"
+    section "当前核心状态" "$YELLOW"
     echo
 
     local status
@@ -312,7 +312,7 @@ show_current_status(){
     fi
 
     echo
-    section "节点配置" "$CYAN"
+    section "节点配置" "$YELLOW"
     echo
     if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
         kv "VLESS Reality    :" "已配置"
@@ -999,17 +999,15 @@ tools_menu(){
 xray_core_menu(){
     while true; do
         header
-        section "Xray Core" "$CYAN"
+        section "Xray Core" "$YELLOW"
         echo
         menu_item "1" "安装 / 更新 Xray Core"
         menu_item "2" "配置 VLESS Reality"
         menu_item "3" "卸载 VLESS Reality"
         menu_item "4" "配置 Shadowsocks"
         menu_item "5" "卸载 Shadowsocks"
-        menu_item "6" "查看节点信息"
-        menu_item "7" "查看 Xray 状态"
-        menu_item "8" "重启 Xray"
-        menu_item "9" "卸载 Xray Core"
+        menu_item "6" "重启 Xray"
+        menu_item "7" "卸载 Xray Core"
         echo
         menu_item "0" "返回主菜单"
         echo
@@ -1023,29 +1021,34 @@ xray_core_menu(){
             3) uninstall_vless ;;
             4) configure_shadowsocks ;;
             5) uninstall_shadowsocks ;;
-            6) show_client_info ;;
-            7) show_status ;;
-            8) restart_xray ;;
-            9) uninstall_xray_core ;;
+            6) restart_xray ;;
+            7) uninstall_xray_core ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
         esac
     done
 }
 
+sing_box_placeholder(){
+    header
+    warning "Sing-box 暂时只保留主菜单入口，功能后续再接入。"
+    pause
+}
+
 main_menu(){
     while true; do
         header
-        section "核心入口" "$CYAN"
+        section "核心入口" "$YELLOW"
         echo
         menu_item "1" "Xray Core"
+        menu_item "2" "Sing-box"
         echo
-        section "当前状态" "$CYAN"
+        section "当前状态" "$YELLOW"
         echo
         menu_item "11" "当前安装核心与状态"
         menu_item "12" "查看节点信息"
         echo
-        section "工具" "$CYAN"
+        section "工具" "$YELLOW"
         echo
         menu_item "66" "工具箱"
         echo
@@ -1057,6 +1060,7 @@ main_menu(){
 
         case "$choice" in
             1) xray_core_menu ;;
+            2) sing_box_placeholder ;;
             11) show_current_status ;;
             12) show_client_info ;;
             66) tools_menu ;;

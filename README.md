@@ -23,7 +23,7 @@ apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL 
 安装完成后，可以直接输入：
 
 ```bash
-proxy-manager
+7o1ove
 ```
 
 进入 Proxy Manager 管理菜单。
