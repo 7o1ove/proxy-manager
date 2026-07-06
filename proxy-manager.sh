@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/xray-manager"
+SCRIPT_DIR="/root/proxy-manager"
 
-# shellcheck source=/root/xray-manager/lib/output.sh
+# shellcheck source=/root/proxy-manager/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 INSTALL_SCRIPT="${SCRIPT_DIR}/core/xray-core.sh"
@@ -16,15 +16,15 @@ XRAY_SERVICE="xray"
 XRAY_DIR="/usr/local/etc/xray"
 PROTOCOL_DIR="${XRAY_DIR}/protocols"
 CLIENT_DIR="${XRAY_DIR}/client"
-IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-xray-manager-ipv6.conf"
+IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-proxy-manager-ipv6.conf"
 SYSCTL_CONFIG="/etc/sysctl.d/99-z-bbr.conf"
 SWAPFILE="/swapfile"
 TIMEZONE="Asia/Hong_Kong"
 
 header(){
-    clear
+    echo
     divider "$CYAN"
-    echo -e "${CYAN}             Xray Manager${RESET}"
+    echo -e "${CYAN}             Proxy Manager${RESET}"
     divider "$CYAN"
 }
 
@@ -270,6 +270,60 @@ update_xray(){
     echo
     if command -v xray >/dev/null 2>&1; then
         value "$(xray version | head -n1)"
+    fi
+
+    pause
+}
+
+uninstall_xray_core(){
+    header
+    warning "即将卸载 Xray Core，并删除 Xray 下的 VLESS Reality、Shadowsocks 配置和节点信息。"
+
+    if ! confirm_action "确认卸载 Xray Core 吗？"; then
+        warning "已取消。"
+        pause
+        return
+    fi
+
+    systemctl disable --now "$XRAY_SERVICE" 2>/dev/null || true
+    bash <(
+        curl -fsSL -L \
+        https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+    ) remove --purge 2>/dev/null || true
+
+    rm -rf "$XRAY_DIR"
+    success "Xray Core 与其协议配置已卸载。"
+    pause
+}
+
+show_current_status(){
+    header
+    section "当前核心状态" "$CYAN"
+    echo
+
+    local status
+    status=$(systemctl is-active "$XRAY_SERVICE" 2>/dev/null || echo "unknown")
+
+    kv "Xray Core        :" "$status"
+    if command -v xray >/dev/null 2>&1; then
+        value "$(xray version | head -n1)"
+    else
+        warning "未检测到 Xray Core。"
+    fi
+
+    echo
+    section "节点配置" "$CYAN"
+    echo
+    if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
+        kv "VLESS Reality    :" "已配置"
+    else
+        kv "VLESS Reality    :" "未配置"
+    fi
+
+    if [[ -f "${CLIENT_DIR}/shadowsocks.txt" ]]; then
+        kv "Shadowsocks      :" "已配置"
+    else
+        kv "Shadowsocks      :" "未配置"
     fi
 
     pause
@@ -942,27 +996,58 @@ tools_menu(){
     done
 }
 
-main_menu(){
+xray_core_menu(){
     while true; do
         header
-        menu_item "1" "安装 Xray Core"
+        section "Xray Core" "$CYAN"
+        echo
+        menu_item "1" "安装 / 更新 Xray Core"
         menu_item "2" "配置 VLESS Reality"
         menu_item "3" "卸载 VLESS Reality"
         menu_item "4" "配置 Shadowsocks"
         menu_item "5" "卸载 Shadowsocks"
-        echo
-        divider "$CYAN" "-"
-        echo
         menu_item "6" "查看节点信息"
         menu_item "7" "查看 Xray 状态"
         menu_item "8" "重启 Xray"
-        menu_item "9" "更新 Xray Core"
+        menu_item "9" "卸载 Xray Core"
         echo
-        divider "$CYAN" "-"
+        menu_item "0" "返回主菜单"
+        echo
+
+        read -r -p "$(prompt_text "请选择: ")" choice
+        choice=${choice:-0}
+
+        case "$choice" in
+            1) update_xray ;;
+            2) configure_vless ;;
+            3) uninstall_vless ;;
+            4) configure_shadowsocks ;;
+            5) uninstall_shadowsocks ;;
+            6) show_client_info ;;
+            7) show_status ;;
+            8) restart_xray ;;
+            9) uninstall_xray_core ;;
+            0) return ;;
+            *) error "无效选择。"; pause ;;
+        esac
+    done
+}
+
+main_menu(){
+    while true; do
+        header
+        section "核心入口" "$CYAN"
+        echo
+        menu_item "1" "Xray Core"
+        echo
+        section "当前状态" "$CYAN"
+        echo
+        menu_item "11" "当前安装核心与状态"
+        menu_item "12" "查看节点信息"
+        echo
+        section "工具" "$CYAN"
         echo
         menu_item "66" "工具箱"
-        echo
-        divider "$CYAN" "-"
         echo
         menu_item "0" "退出"
         echo
@@ -971,17 +1056,11 @@ main_menu(){
         choice=${choice:-0}
 
         case "$choice" in
-            1) install_xray ;;
-            2) configure_vless ;;
-            3) uninstall_vless ;;
-            4) configure_shadowsocks ;;
-            5) uninstall_shadowsocks ;;
-            6) show_client_info ;;
-            7) show_status ;;
-            8) restart_xray ;;
-            9) update_xray ;;
+            1) xray_core_menu ;;
+            11) show_current_status ;;
+            12) show_client_info ;;
             66) tools_menu ;;
-            0) clear; exit 0 ;;
+            0) exit 0 ;;
             *) error "无效选择。"; pause ;;
         esac
     done

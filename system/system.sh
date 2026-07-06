@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/xray-manager"
+SCRIPT_DIR="/root/proxy-manager"
 
-# shellcheck source=/root/xray-manager/lib/output.sh
+# shellcheck source=/root/proxy-manager/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 ########################################

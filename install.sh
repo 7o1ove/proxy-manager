@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO="https://github.com/7o1ove/xray-manager.git"
-INSTALL_DIR="/root/xray-manager"
-COMMAND_NAME="7o1ove"
+REPO="https://github.com/7o1ove/proxy-manager.git"
+INSTALL_DIR="/root/proxy-manager"
+COMMAND_NAME="proxy-manager"
 COMMAND_PATH="/usr/local/bin/${COMMAND_NAME}"
 
-echo "Installing Xray Manager..."
+echo "Installing Proxy Manager..."
 
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo
@@ -32,7 +32,7 @@ chmod +x system/*.sh 2>/dev/null || true
 chmod +x config/*.sh 2>/dev/null || true
 chmod +x lib/*.sh 2>/dev/null || true
 
-# shellcheck source=/root/xray-manager/lib/output.sh
+# shellcheck source=/root/proxy-manager/lib/output.sh
 source "${INSTALL_DIR}/lib/output.sh"
 
 info "Creating global command: ${COMMAND_NAME}"
@@ -42,15 +42,15 @@ mkdir -p "$(dirname "$COMMAND_PATH")"
 cat > "$COMMAND_PATH" <<EOF
 #!/usr/bin/env bash
 cd "$INSTALL_DIR"
-exec bash "$INSTALL_DIR/xray-manager.sh" "\$@"
+exec bash "$INSTALL_DIR/proxy-manager.sh" "\$@"
 EOF
 
 chmod +x "$COMMAND_PATH"
 hash -r 2>/dev/null || true
 
 banner "Installation completed!" "$GREEN"
-success "Run '${COMMAND_NAME}' next time to open Xray Manager."
-info "Starting Xray Manager..."
+success "Run '${COMMAND_NAME}' next time to open Proxy Manager."
+info "Starting Proxy Manager..."
 echo
 
-bash xray-manager.sh </dev/tty
+bash proxy-manager.sh </dev/tty

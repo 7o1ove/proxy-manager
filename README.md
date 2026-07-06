@@ -1,6 +1,6 @@
-# Xray Manager
+# Proxy Manager
 
-一个用于管理 Xray Core、VLESS Reality、Shadowsocks 以及常用 VPS 系统工具的 Bash 管理脚本。
+一个用于管理代理核心、节点协议以及常用 VPS 系统工具的 Bash 管理脚本。当前核心为 Xray Core，后续会继续扩展其他核心。
 
 ## 项目定位
 
@@ -17,16 +17,16 @@
 ## 安装与使用
 
 ```bash
-apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/7o1ove/xray-manager/main/install.sh)
+apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/7o1ove/proxy-manager/main/install.sh)
 ```
 
 安装完成后，可以直接输入：
 
 ```bash
-7o1ove
+proxy-manager
 ```
 
-进入 Xray Manager 管理菜单。
+进入 Proxy Manager 管理菜单。
 
 ## 致谢
 

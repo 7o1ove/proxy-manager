@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/xray-manager"
+SCRIPT_DIR="/root/proxy-manager"
 
-# shellcheck source=/root/xray-manager/lib/output.sh
+# shellcheck source=/root/proxy-manager/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 XRAY_DIR="/usr/local/etc/xray"
@@ -208,7 +208,7 @@ cat > "$PROTOCOL_CONFIG" <<EOF
 EOF
 
 info "正在构建 Xray 配置..."
-if ! bash /root/xray-manager/config/build_config.sh; then
+if ! bash /root/proxy-manager/config/build_config.sh; then
     exit 1
 fi
 
