@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/proxy-manager"
+SCRIPT_DIR="/root/netkit"
 
-# shellcheck source=/root/proxy-manager/lib/output.sh
+# shellcheck source=/root/netkit/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 XRAY_DIR="/usr/local/etc/xray"
@@ -106,7 +106,7 @@ cat > "$PROTOCOL_CONFIG" <<EOF
 EOF
 
 info "正在构建 Xray 配置..."
-if ! bash /root/proxy-manager/config/build_config.sh; then
+if ! bash /root/netkit/config/build_config.sh; then
     if [[ -n "$PROTOCOL_BACKUP" && -f "$PROTOCOL_BACKUP" ]]; then
         mv "$PROTOCOL_BACKUP" "$PROTOCOL_CONFIG"
     else
@@ -179,7 +179,7 @@ echo
 label " Shadowsocks 协议配置文件"
 path_value "$PROTOCOL_CONFIG"
 echo
-label " 节点信息文件"
+label " 连接信息文件"
 path_value "$CLIENT_FILE"
 echo
 label " Mihomo / Clash YAML"

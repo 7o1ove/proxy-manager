@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/proxy-manager"
+SCRIPT_DIR="/root/netkit"
 
-# shellcheck source=/root/proxy-manager/lib/output.sh
+# shellcheck source=/root/netkit/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 INSTALL_SCRIPT="${SCRIPT_DIR}/core/xray-core.sh"
@@ -16,13 +16,13 @@ XRAY_SERVICE="xray"
 XRAY_DIR="/usr/local/etc/xray"
 PROTOCOL_DIR="${XRAY_DIR}/protocols"
 CLIENT_DIR="${XRAY_DIR}/client"
-IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-proxy-manager-ipv6.conf"
+IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-netkit-ipv6.conf"
 SYSCTL_CONFIG="/etc/sysctl.d/99-z-bbr.conf"
 SWAPFILE="/swapfile"
 TIMEZONE="Asia/Hong_Kong"
 
 header(){
-    local title="${1:-Proxy Manager}"
+    local title="${1:-NetKit}"
 
     echo
     divider "$CYAN"
@@ -171,7 +171,7 @@ uninstall_shadowsocks(){
 }
 
 show_client_info(){
-    header "节点信息"
+    header "连接信息"
 
     section "VLESS Reality" "$YELLOW"
     echo
@@ -279,7 +279,7 @@ update_xray(){
 
 uninstall_xray_core(){
     header "卸载 Xray Core"
-    warning "即将卸载 Xray Core，并删除 Xray 下的 VLESS Reality、Shadowsocks 配置和节点信息。"
+    warning "即将卸载 Xray Core，并删除 Xray 下的 VLESS Reality、Shadowsocks 配置和连接信息。"
 
     if ! confirm_action "确认卸载 Xray Core 吗？"; then
         warning "已取消。"
@@ -314,7 +314,7 @@ show_current_status(){
     fi
 
     echo
-    section "节点配置" "$YELLOW"
+    section "连接配置" "$YELLOW"
     echo
     if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
         kv "VLESS Reality    :" "已配置"
@@ -1047,7 +1047,7 @@ main_menu(){
         section "当前状态" "$YELLOW"
         echo
         menu_item "11" "当前安装核心与状态"
-        menu_item "12" "查看节点信息"
+        menu_item "12" "查看连接信息"
         echo
         section "工具" "$YELLOW"
         echo

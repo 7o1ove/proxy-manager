@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/proxy-manager"
+SCRIPT_DIR="/root/netkit"
 
-# shellcheck source=/root/proxy-manager/lib/output.sh
+# shellcheck source=/root/netkit/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 ########################################

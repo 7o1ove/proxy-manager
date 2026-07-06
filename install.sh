@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO="https://github.com/7o1ove/proxy-manager.git"
-INSTALL_DIR="/root/proxy-manager"
+REPO="https://github.com/7o1ove/netkit.git"
+INSTALL_DIR="/root/netkit"
 COMMAND_NAME="7o1ove"
 COMMAND_PATH="/usr/local/bin/${COMMAND_NAME}"
-LEGACY_COMMAND_PATH="/usr/local/bin/proxy-manager"
+LEGACY_COMMAND_PATH="/usr/local/bin/netkit"
 
-echo "Installing Proxy Manager..."
+echo "Installing NetKit..."
 
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo
@@ -33,7 +33,7 @@ chmod +x system/*.sh 2>/dev/null || true
 chmod +x config/*.sh 2>/dev/null || true
 chmod +x lib/*.sh 2>/dev/null || true
 
-# shellcheck source=/root/proxy-manager/lib/output.sh
+# shellcheck source=/root/netkit/lib/output.sh
 source "${INSTALL_DIR}/lib/output.sh"
 
 info "Creating global command: ${COMMAND_NAME}"
@@ -44,15 +44,15 @@ rm -f "$LEGACY_COMMAND_PATH"
 cat > "$COMMAND_PATH" <<EOF
 #!/usr/bin/env bash
 cd "$INSTALL_DIR"
-exec bash "$INSTALL_DIR/proxy-manager.sh" "\$@"
+exec bash "$INSTALL_DIR/netkit.sh" "\$@"
 EOF
 
 chmod +x "$COMMAND_PATH"
 hash -r 2>/dev/null || true
 
 banner "安装完成" "$GREEN"
-success "下次输入 '${COMMAND_NAME}' 即可打开 Proxy Manager。"
-info "正在启动 Proxy Manager..."
+success "下次输入 '${COMMAND_NAME}' 即可打开 NetKit。"
+info "正在启动 NetKit..."
 echo
 
-bash proxy-manager.sh </dev/tty
+bash netkit.sh </dev/tty

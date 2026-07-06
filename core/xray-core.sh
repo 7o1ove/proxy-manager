@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="/root/proxy-manager"
+SCRIPT_DIR="/root/netkit"
 
-# shellcheck source=/root/proxy-manager/lib/output.sh
+# shellcheck source=/root/netkit/lib/output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
 
 XRAY_DIR="/usr/local/etc/xray"
@@ -71,7 +71,7 @@ echo
 path_kv "程序文件        :" "$XRAY_BIN"
 path_kv "配置目录        :" "${XRAY_DIR}"
 path_kv "协议配置        :" "${XRAY_DIR}/protocols"
-path_kv "节点信息        :" "${XRAY_DIR}/client"
+path_kv "连接信息        :" "${XRAY_DIR}/client"
 
 echo
 divider "$GREEN"

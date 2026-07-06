@@ -1,6 +1,6 @@
-# Proxy Manager
+# NetKit
 
-一个用于管理代理核心、节点协议以及常用 VPS 系统工具的 Bash 管理脚本。当前核心为 Xray Core，后续会继续扩展其他核心。
+一个用于管理网络服务、连接协议以及常用 VPS 系统工具的 Bash 管理脚本。当前核心为 Xray Core，后续会继续扩展其他核心。
 
 ## 项目定位
 
@@ -17,7 +17,7 @@
 ## 安装与使用
 
 ```bash
-apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/7o1ove/proxy-manager/main/install.sh)
+apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/7o1ove/netkit/main/install.sh)
 ```
 
 安装完成后，可以直接输入：
@@ -26,7 +26,7 @@ apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL 
 7o1ove
 ```
 
-进入 Proxy Manager 管理菜单。
+进入 NetKit 管理菜单。
 
 ## 致谢
 
