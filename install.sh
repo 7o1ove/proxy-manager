@@ -50,9 +50,9 @@ EOF
 chmod +x "$COMMAND_PATH"
 hash -r 2>/dev/null || true
 
-banner "Installation completed!" "$GREEN"
-success "Run '${COMMAND_NAME}' next time to open Proxy Manager."
-info "Starting Proxy Manager..."
+banner "安装完成" "$GREEN"
+success "下次输入 '${COMMAND_NAME}' 即可打开 Proxy Manager。"
+info "正在启动 Proxy Manager..."
 echo
 
 bash proxy-manager.sh </dev/tty

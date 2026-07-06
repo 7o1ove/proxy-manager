@@ -21,11 +21,11 @@ SWAPFILE="/swapfile"
 
 TIMEZONE="Asia/Hong_Kong"
 
-info "Updating package list..."
+info "正在更新软件包列表..."
 
 apt update
 
-info "Installing dependencies..."
+info "正在安装依赖..."
 
 apt install -y \
     openssl \
@@ -35,23 +35,36 @@ apt install -y \
     ufw \
     fail2ban
 
-info "Configuring SSH..."
+info "正在配置 SSH..."
 
-read -r -p "$(prompt_text "SSH Port: ")" SSH_PORT
+OLD_SSH_PORT=$(awk '
+    /^[[:space:]]*Port[[:space:]]+[0-9]+/ {
+        print $2
+        found=1
+        exit
+    }
+    END {
+        if (!found)
+            print 22
+    }
+' "$SSH_CONFIG")
+
+read -r -p "$(prompt_text "SSH 端口: ")" SSH_PORT
 
 if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]] || \
    [[ "$SSH_PORT" -lt 1 ]] || \
    [[ "$SSH_PORT" -gt 65535 ]]; then
 
-    error "Invalid SSH port."
+    error "SSH 端口无效。"
 
     exit 1
 
 fi
 
-if ss -ltnH | awk '{print $4}' | grep -q ":${SSH_PORT}$"; then
+if [[ "$SSH_PORT" != "$OLD_SSH_PORT" ]] && \
+   ss -ltnH | awk '{print $4}' | grep -q ":${SSH_PORT}$"; then
 
-    error "Port already in use."
+    error "端口已被占用。"
 
     exit 1
 
@@ -59,11 +72,11 @@ fi
 
 echo
 
-read -r -p "$(prompt_text "SSH Public Key: ")" PUBLIC_KEY
+read -r -p "$(prompt_text "SSH 公钥: ")" PUBLIC_KEY
 
 if [[ -z "$PUBLIC_KEY" ]]; then
 
-    error "SSH Public Key cannot be empty."
+    error "SSH 公钥不能为空。"
 
     exit 1
 
@@ -78,7 +91,7 @@ echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
 
 
-info "Applying SSH configuration..."
+info "正在应用 SSH 配置..."
 
 declare -A SSH_CONFIGS=(
     ["Port"]="$SSH_PORT"
@@ -125,15 +138,23 @@ END {
 
 mv "${SSH_CONFIG}.tmp" "$SSH_CONFIG"
 
-info "Configuring firewall..."
+info "正在配置防火墙..."
 
 ufw allow "${SSH_PORT}/tcp" comment "SSH"
 
-ufw delete allow 22/tcp >/dev/null 2>&1 || true
+if [[ "$SSH_PORT" != "$OLD_SSH_PORT" ]]; then
 
-ufw delete allow OpenSSH >/dev/null 2>&1 || true
+    ufw delete allow "${OLD_SSH_PORT}/tcp" >/dev/null 2>&1 || true
 
-info "Configuring Fail2Ban..."
+    if [[ "$OLD_SSH_PORT" == "22" ]]; then
+
+        ufw delete allow OpenSSH >/dev/null 2>&1 || true
+
+    fi
+
+fi
+
+info "正在配置 Fail2Ban..."
 
 cat > "$FAIL2BAN_CONFIG" <<EOF
 [DEFAULT]
@@ -151,15 +172,15 @@ bantime = 604800
 EOF
 
 
-read -r -p "$(prompt_text "Create 1G Swap? [y/n]: ")" CREATE_SWAP
+read -r -p "$(prompt_text "创建 1G 虚拟内存？[y/n]: ")" CREATE_SWAP
 
 CREATE_SWAP=${CREATE_SWAP:-y}
 
-SWAP_STATUS="Skipped"
+SWAP_STATUS="已跳过"
 
 if [[ "$CREATE_SWAP" =~ ^[Yy]$ ]]; then
 
-    info "Creating swap..."
+    info "正在创建虚拟内存..."
 
     if [[ -z "$(swapon --show)" ]]; then
 
@@ -175,25 +196,25 @@ if [[ "$CREATE_SWAP" =~ ^[Yy]$ ]]; then
         grep -q "^${SWAPFILE}" /etc/fstab || \
         echo "${SWAPFILE} none swap sw 0 0" >> /etc/fstab
 
-        SWAP_STATUS="Created"
+        SWAP_STATUS="已创建"
 
     else
 
-        SWAP_STATUS="Already Exists"
+        SWAP_STATUS="已存在"
 
     fi
 
 else
 
-    warning "Skipping swap..."
+    warning "已跳过虚拟内存。"
 
 fi
 
-info "Configuring timezone..."
+info "正在配置时区..."
 
 timedatectl set-timezone "$TIMEZONE"
 
-info "Applying system optimization..."
+info "正在应用系统调优..."
 
 modprobe nf_conntrack 2>/dev/null || true
 
@@ -221,7 +242,7 @@ EOF
 
 sysctl --system >/dev/null
 
-info "Restarting services..."
+info "正在重启服务..."
 
 systemctl restart ssh
 
@@ -233,25 +254,25 @@ systemctl enable fail2ban
 
 systemctl restart fail2ban
 
-banner "     System Configuration Summary" "$GREEN"
+banner "系统配置摘要" "$GREEN"
 
-kv "SSH Port    :" "$SSH_PORT"
-kv "SSH Auth    :" "Key Only"
-
-echo
-
-kv "Firewall    :" "$(ufw status | grep -q active && echo Enabled || echo Disabled)"
-kv "Fail2Ban    :" "$(systemctl is-active --quiet fail2ban && echo Enabled || echo Disabled)"
+kv "SSH 端口    :" "$SSH_PORT"
+kv "SSH 认证    :" "仅密钥"
 
 echo
 
-kv "Swap        :" "$SWAP_STATUS"
-kv "Timezone    :" "$TIMEZONE"
+kv "防火墙      :" "$(ufw status | grep -q active && echo 已启用 || echo 未启用)"
+kv "Fail2Ban    :" "$(systemctl is-active --quiet fail2ban && echo 已启用 || echo 未启用)"
 
 echo
 
-kv "TCP CC      :" "bbr"
-kv "Qdisc       :" "fq"
+kv "虚拟内存    :" "$SWAP_STATUS"
+kv "时区        :" "$TIMEZONE"
+
+echo
+
+kv "TCP 拥塞控制:" "bbr"
+kv "队列算法    :" "fq"
 
 echo
 

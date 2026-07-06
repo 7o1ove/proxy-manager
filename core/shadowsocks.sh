@@ -9,10 +9,30 @@ source "${SCRIPT_DIR}/lib/output.sh"
 
 XRAY_DIR="/usr/local/etc/xray"
 
+CONFIG_FILE="${XRAY_DIR}/config.json"
 PROTOCOL_CONFIG="${XRAY_DIR}/protocols/shadowsocks.json"
 CLIENT_FILE="${XRAY_DIR}/client/shadowsocks.txt"
 
 METHOD="2022-blake3-aes-256-gcm"
+
+ensure_dependencies(){
+    local missing=()
+    local package
+
+    for package in curl openssl coreutils iproute2; do
+        if ! dpkg -s "$package" >/dev/null 2>&1; then
+            missing+=("$package")
+        fi
+    done
+
+    if [[ "${#missing[@]}" -gt 0 ]]; then
+        info "正在安装 Shadowsocks 环境依赖..."
+        apt update
+        apt install -y "${missing[@]}"
+    fi
+}
+
+ensure_dependencies
 
 info "正在检查 Xray..."
 
@@ -37,18 +57,25 @@ SERVER_IP=$(
 
 read -r -p "$(prompt_text "端口（留空随机）: ")" PORT
 
-if [[ -z "$PORT" ]]; then
-    while :; do
-        PORT=$(shuf -i 30000-60000 -n1)
-        ss -ltnH | awk '{print $4}' | grep -q ":${PORT}$" || break
-    done
-fi
+PORT=$(resolve_port "$PORT") || exit 1
 
 info "正在生成密码..."
 
 PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
 
 info "正在保存 Shadowsocks 协议配置..."
+
+PROTOCOL_BACKUP=""
+if [[ -f "$PROTOCOL_CONFIG" ]]; then
+    PROTOCOL_BACKUP="${PROTOCOL_CONFIG}.bak.$$"
+    cp "$PROTOCOL_CONFIG" "$PROTOCOL_BACKUP"
+fi
+
+CONFIG_BACKUP=""
+if [[ -f "$CONFIG_FILE" ]]; then
+    CONFIG_BACKUP="${CONFIG_FILE}.bak.$$"
+    cp "$CONFIG_FILE" "$CONFIG_BACKUP"
+fi
 
 cat > "$PROTOCOL_CONFIG" <<EOF
 {
@@ -80,16 +107,26 @@ EOF
 
 info "正在构建 Xray 配置..."
 if ! bash /root/proxy-manager/config/build_config.sh; then
+    if [[ -n "$PROTOCOL_BACKUP" && -f "$PROTOCOL_BACKUP" ]]; then
+        mv "$PROTOCOL_BACKUP" "$PROTOCOL_CONFIG"
+    else
+        rm -f "$PROTOCOL_CONFIG"
+    fi
+    if [[ -n "$CONFIG_BACKUP" && -f "$CONFIG_BACKUP" ]]; then
+        mv "$CONFIG_BACKUP" "$CONFIG_FILE"
+    else
+        rm -f "$CONFIG_FILE"
+    fi
     exit 1
 fi
+[[ -n "$PROTOCOL_BACKUP" ]] && rm -f "$PROTOCOL_BACKUP"
+[[ -n "$CONFIG_BACKUP" ]] && rm -f "$CONFIG_BACKUP"
 
 info "正在更新防火墙..."
 
 if command -v ufw >/dev/null 2>&1; then
-    ufw status | grep -q "${PORT}/tcp" || \
     ufw allow "${PORT}/tcp" comment "Xray Shadowsocks TCP" >/dev/null
 
-    ufw status | grep -q "${PORT}/udp" || \
     ufw allow "${PORT}/udp" comment "Xray Shadowsocks UDP" >/dev/null
 fi
 
@@ -105,7 +142,12 @@ if ! systemctl is-active --quiet xray; then
 fi
 
 SS_BASE64=$(printf "%s:%s" "$METHOD" "$PASSWORD" | base64 | tr -d '\n')
-SS_LINK="ss://${SS_BASE64}@${SERVER_IP}:${PORT}"
+LINK_HOST=$(uri_host "$SERVER_IP")
+YAML_SERVER=$(yaml_quote "$SERVER_IP")
+YAML_METHOD=$(yaml_quote "$METHOD")
+YAML_PASSWORD=$(yaml_quote "$PASSWORD")
+
+SS_LINK="ss://${SS_BASE64}@${LINK_HOST}:${PORT}"
 
 cat > "$CLIENT_FILE" <<EOF
 SS Link:
@@ -114,10 +156,10 @@ ${SS_LINK}
 Mihomo / Clash:
 - name: Shadowsocks
   type: ss
-  server: ${SERVER_IP}
+  server: ${YAML_SERVER}
   port: ${PORT}
-  cipher: ${METHOD}
-  password: ${PASSWORD}
+  cipher: ${YAML_METHOD}
+  password: ${YAML_PASSWORD}
   udp: true
 EOF
 

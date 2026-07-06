@@ -13,7 +13,7 @@ CONFIG_FILE="${XRAY_DIR}/config.json"
 PROTOCOL_DIR="${XRAY_DIR}/protocols"
 OUTBOUND_FILE="${XRAY_DIR}/outbound.json"
 
-info "Building Xray configuration..."
+info "正在构建 Xray 配置..."
 
 mkdir -p "$XRAY_DIR"
 mkdir -p "$PROTOCOL_DIR"
@@ -35,7 +35,7 @@ elif [[ -x /usr/bin/xray ]]; then
 
 else
 
-    error "Xray not found."
+    error "未检测到 Xray。"
 
     exit 1
 
@@ -45,7 +45,7 @@ fi
 
 if [[ ! -f "$OUTBOUND_FILE" ]]; then
 
-    error "Outbound configuration not found."
+    error "未找到出站配置。"
 
     exit 1
 
@@ -69,7 +69,7 @@ done
 
 if ! $FOUND; then
 
-    error "No protocol configuration found."
+    error "未找到协议配置。"
 
     exit 1
 
@@ -129,17 +129,17 @@ EOF
 
 # Test
 
-info "Testing configuration..."
+info "正在测试 Xray 配置..."
 
 if ! "$XRAY_BIN" run -test -config "$CONFIG_FILE"; then
 
-    banner " Configuration test failed" "$RED"
+    banner "配置测试失败" "$RED"
 
     exit 1
 
 fi
 
-banner " Configuration built successfully" "$GREEN"
+banner "配置构建成功" "$GREEN"
 echo
 label " Xray 主配置文件"
 path_value "$CONFIG_FILE"

@@ -43,6 +43,89 @@ confirm_action(){
     [[ "$answer" =~ ^[Yy]$ ]]
 }
 
+valid_port(){
+    [[ "$1" =~ ^[0-9]+$ ]] && [[ "$1" -ge 1 ]] && [[ "$1" -le 65535 ]]
+}
+
+port_in_use(){
+    local port="$1"
+
+    ss -ltnH 2>/dev/null | awk '{print $4}' | grep -q ":${port}$" && return 0
+    ss -lunH 2>/dev/null | awk '{print $4}' | grep -q ":${port}$"
+}
+
+random_available_port(){
+    local port
+
+    while :; do
+        port=$(shuf -i 30000-60000 -n1)
+        port_in_use "$port" || {
+            printf "%s" "$port"
+            return
+        }
+    done
+}
+
+resolve_port(){
+    local port="$1"
+
+    if [[ -z "$port" ]]; then
+        random_available_port
+        return
+    fi
+
+    if ! valid_port "$port"; then
+        error "端口无效：${port}" >&2
+        return 1
+    fi
+
+    if port_in_use "$port"; then
+        error "端口已被占用：${port}" >&2
+        return 1
+    fi
+
+    printf "%s" "$port"
+}
+
+uri_host(){
+    local host="$1"
+
+    if [[ "$host" == *:* && "$host" != \[*\] ]]; then
+        printf "[%s]" "$host"
+    else
+        printf "%s" "$host"
+    fi
+}
+
+yaml_quote(){
+    local value="$1"
+
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    printf '"%s"' "$value"
+}
+
+normalize_reality_sni(){
+    local host="${1:-icloud.com}"
+
+    host="${host#https://}"
+    host="${host#http://}"
+    host="${host%%/*}"
+    host="${host%/}"
+
+    if [[ "$host" == *:* ]]; then
+        error "Reality SNI 只填写域名，不要带端口：${host}" >&2
+        return 1
+    fi
+
+    if [[ ! "$host" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$ ]]; then
+        error "Reality SNI 域名无效：${host}" >&2
+        return 1
+    fi
+
+    printf "%s" "$host"
+}
+
 label(){
     echo -e "${CYAN}$1${RESET}"
 }

@@ -421,12 +421,16 @@ set_ssh_port(){
 
     if command -v ufw >/dev/null 2>&1; then
         ufw allow "${ssh_port}/tcp" comment "SSH" >/dev/null
-        ufw delete allow 22/tcp >/dev/null 2>&1 || true
-        ufw delete allow OpenSSH >/dev/null 2>&1 || true
+        if [[ "$ssh_port" != "$old_ssh_port" ]]; then
+            ufw delete allow "${old_ssh_port}/tcp" >/dev/null 2>&1 || true
+            if [[ "$old_ssh_port" == "22" ]]; then
+                ufw delete allow OpenSSH >/dev/null 2>&1 || true
+            fi
+        fi
     fi
 
     restart_ssh_service
-    success "SSH 端口已设置为 ${ssh_port}，22 端口已从 UFW 规则中移除。"
+    success "SSH 端口已设置为 ${ssh_port}，防火墙规则已更新。"
     pause
 }
 

@@ -9,6 +9,7 @@ source "${SCRIPT_DIR}/lib/output.sh"
 
 XRAY_DIR="/usr/local/etc/xray"
 
+CONFIG_FILE="${XRAY_DIR}/config.json"
 PROTOCOL_CONFIG="${XRAY_DIR}/protocols/vless.json"
 CLIENT_FILE="${XRAY_DIR}/client/vless.txt"
 
@@ -115,20 +116,11 @@ SERVER_IP=$(
 
 read -r -p "$(prompt_text "端口（留空随机）: ")" PORT
 
-if [[ -z "$PORT" ]]; then
-    while :; do
-        PORT=$(shuf -i 30000-60000 -n1)
-        ss -ltnH | awk '{print $4}' | grep -q ":${PORT}$" || break
-    done
-fi
+PORT=$(resolve_port "$PORT") || exit 1
 
 read -r -p "$(prompt_text "Reality SNI（默认 icloud.com）: ")" SNI
 
-SNI=${SNI:-icloud.com}
-SNI=${SNI#https://}
-SNI=${SNI#http://}
-SNI=${SNI%%/*}
-SNI=${SNI%/}
+SNI=$(normalize_reality_sni "$SNI") || exit 1
 
 check_reality_target "$SNI"
 
@@ -160,6 +152,18 @@ info "正在生成 Short ID..."
 SHORT_ID=$(openssl rand -hex 8)
 
 info "正在写入 VLESS Reality 协议配置..."
+
+PROTOCOL_BACKUP=""
+if [[ -f "$PROTOCOL_CONFIG" ]]; then
+    PROTOCOL_BACKUP="${PROTOCOL_CONFIG}.bak.$$"
+    cp "$PROTOCOL_CONFIG" "$PROTOCOL_BACKUP"
+fi
+
+CONFIG_BACKUP=""
+if [[ -f "$CONFIG_FILE" ]]; then
+    CONFIG_BACKUP="${CONFIG_FILE}.bak.$$"
+    cp "$CONFIG_FILE" "$CONFIG_BACKUP"
+fi
 
 cat > "$PROTOCOL_CONFIG" <<EOF
 {
@@ -209,13 +213,24 @@ EOF
 
 info "正在构建 Xray 配置..."
 if ! bash /root/proxy-manager/config/build_config.sh; then
+    if [[ -n "$PROTOCOL_BACKUP" && -f "$PROTOCOL_BACKUP" ]]; then
+        mv "$PROTOCOL_BACKUP" "$PROTOCOL_CONFIG"
+    else
+        rm -f "$PROTOCOL_CONFIG"
+    fi
+    if [[ -n "$CONFIG_BACKUP" && -f "$CONFIG_BACKUP" ]]; then
+        mv "$CONFIG_BACKUP" "$CONFIG_FILE"
+    else
+        rm -f "$CONFIG_FILE"
+    fi
     exit 1
 fi
+[[ -n "$PROTOCOL_BACKUP" ]] && rm -f "$PROTOCOL_BACKUP"
+[[ -n "$CONFIG_BACKUP" ]] && rm -f "$CONFIG_BACKUP"
 
 info "正在更新防火墙..."
 
 if command -v ufw >/dev/null 2>&1; then
-    ufw status | grep -q "${PORT}/tcp" || \
     ufw allow "${PORT}/tcp" comment "Xray VLESS" >/dev/null
 fi
 
@@ -233,7 +248,16 @@ if ! systemctl is-active --quiet xray; then
     exit 1
 fi
 
-VLESS_LINK="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=${FLOW}&security=reality&type=tcp&sni=${SNI}&fp=${FINGERPRINT}&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&packetEncoding=xudp"
+LINK_HOST=$(uri_host "$SERVER_IP")
+YAML_SERVER=$(yaml_quote "$SERVER_IP")
+YAML_SNI=$(yaml_quote "$SNI")
+YAML_UUID=$(yaml_quote "$UUID")
+YAML_FLOW=$(yaml_quote "$FLOW")
+YAML_FINGERPRINT=$(yaml_quote "$FINGERPRINT")
+YAML_PUBLIC_KEY=$(yaml_quote "$PUBLIC_KEY")
+YAML_SHORT_ID=$(yaml_quote "$SHORT_ID")
+
+VLESS_LINK="vless://${UUID}@${LINK_HOST}:${PORT}?encryption=none&flow=${FLOW}&security=reality&type=tcp&sni=${SNI}&fp=${FINGERPRINT}&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&packetEncoding=xudp"
 
 cat > "$CLIENT_FILE" <<EOF
 VLESS Link:
@@ -242,19 +266,19 @@ ${VLESS_LINK}
 Mihomo / Clash:
 - name: VLESS Reality
   type: vless
-  server: ${SERVER_IP}
+  server: ${YAML_SERVER}
   port: ${PORT}
-  uuid: ${UUID}
+  uuid: ${YAML_UUID}
   network: tcp
   tls: true
   udp: true
-  flow: ${FLOW}
-  servername: ${SNI}
-  client-fingerprint: ${FINGERPRINT}
+  flow: ${YAML_FLOW}
+  servername: ${YAML_SNI}
+  client-fingerprint: ${YAML_FINGERPRINT}
   packet-encoding: xudp
   reality-opts:
-    public-key: ${PUBLIC_KEY}
-    short-id: ${SHORT_ID}
+    public-key: ${YAML_PUBLIC_KEY}
+    short-id: ${YAML_SHORT_ID}
 EOF
 
 echo
