@@ -30,7 +30,7 @@ apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL 
 
 ## DMIT 网络恢复
 
-### DD Debian 13 后无法联网
+### DD Debian 13 后无法通过 SSH 连接
 
 如果 DD Debian 13 后无法联网，可以通过 VNC 登录系统后执行：
 
@@ -61,7 +61,7 @@ ip link set 实际网卡名 up
 dhcpcd -4 实际网卡名
 ```
 
-网络恢复后，此时已经可以使用 Xshell 等 SSH 工具重新连接服务器。后续操作可在 SSH 中完成，但不要重启网络服务。先查看原来的网络配置：
+网络恢复后，此时已经可以使用 SSH 工具重新连接服务器。后续操作可在 SSH 中完成，但不要重启网络服务。先查看原来的网络配置：
 
 ```
 cat /etc/network/interfaces
