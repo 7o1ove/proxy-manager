@@ -11,10 +11,41 @@ XANMOD_KEY_URL="https://dl.xanmod.org/archive.key"
 XANMOD_REPOSITORY="http://deb.xanmod.org"
 XANMOD_KEYRING="/etc/apt/keyrings/xanmod-archive-keyring.gpg"
 XANMOD_SOURCE="/etc/apt/sources.list.d/xanmod-release.list"
+XANMOD_CLEANUP_LIST="/var/lib/netkit/xanmod-old-kernels.list"
+XANMOD_CLEANUP_UNIT="/etc/systemd/system/netkit-xanmod-cleanup.service"
+XANMOD_CLEANUP_SCRIPT="${SCRIPT_DIR}/system/xanmod-kernel-cleanup.sh"
 
 fail(){
     error "$1"
     exit 1
+}
+
+protect_running_kernel(){
+    local package
+    local status
+
+    [[ "$CURRENT_KERNEL" == *xanmod* ]] && return
+
+    package="linux-image-${CURRENT_KERNEL}"
+    status=$(dpkg-query -W -f='${db:Status-Status}' "$package" 2>/dev/null || true)
+    if [[ -z "$status" || "$status" == "not-installed" || "$status" == "config-files" ]]; then
+        warning "无法定位当前运行内核的软件包 ${package}；请勿在安装完成前重启。"
+        return
+    fi
+
+    apt-mark hold "$package" >/dev/null || \
+        fail "无法保护当前运行内核软件包：${package}"
+    info "已临时锁定当前运行内核：${package}"
+}
+
+repair_dpkg_state(){
+    local audit
+
+    audit=$(dpkg --audit 2>&1 || true)
+    [[ -z "${audit//[[:space:]]/}" ]] && return
+
+    warning "检测到 dpkg 上次操作未完成，正在自动恢复..."
+    dpkg --force-confold --configure -a
 }
 
 detect_container(){
@@ -125,16 +156,18 @@ select_xanmod_package(){
     return 1
 }
 
+list_old_kernel_packages(){
+    dpkg-query -W -f='${binary:Package}\t${db:Status-Status}\n' \
+            'linux-image-*' 'linux-headers-*' 'linux-modules-*' 2>/dev/null |
+        awk '$2 != "not-installed" && $1 !~ /xanmod/ {print $1}' |
+        sort -u || true
+}
+
 purge_old_kernels(){
     local package
     local old_packages=()
 
-    mapfile -t old_packages < <(
-        dpkg-query -W -f='${binary:Package}\t${db:Status-Status}\n' \
-            'linux-image-*' 'linux-headers-*' 'linux-modules-*' 2>/dev/null |
-            awk '$2 == "installed" && $1 !~ /xanmod/ {print $1}' |
-            sort -u || true
-    )
+    mapfile -t old_packages < <(list_old_kernel_packages)
 
     if (( ${#old_packages[@]} == 0 )); then
         info "未检测到需要删除的旧内核软件包。"
@@ -146,7 +179,52 @@ purge_old_kernels(){
         value "$package"
     done
 
-    apt purge -y "${old_packages[@]}"
+    apt-mark unhold "${old_packages[@]}" >/dev/null 2>&1 || true
+    apt-get -o DPkg::Lock::Timeout=300 \
+        -o Dpkg::Options::=--force-confold \
+        purge -y --allow-change-held-packages -- "${old_packages[@]}"
+}
+
+schedule_old_kernel_cleanup(){
+    local package
+    local old_packages=()
+
+    command -v systemctl >/dev/null 2>&1 || \
+        fail "系统没有 systemctl，无法安排重启后的安全内核清理。"
+    [[ -r "$XANMOD_CLEANUP_SCRIPT" ]] || \
+        fail "缺少旧内核清理脚本：${XANMOD_CLEANUP_SCRIPT}"
+
+    mapfile -t old_packages < <(list_old_kernel_packages)
+    if (( ${#old_packages[@]} == 0 )); then
+        info "未检测到需要删除的旧内核软件包。"
+        return
+    fi
+
+    mkdir -p "$(dirname "$XANMOD_CLEANUP_LIST")"
+    printf '%s\n' "${old_packages[@]}" > "$XANMOD_CLEANUP_LIST"
+    chmod 0600 "$XANMOD_CLEANUP_LIST"
+
+    cat > "$XANMOD_CLEANUP_UNIT" <<EOF
+[Unit]
+Description=NetKit XanMod old kernel cleanup
+After=local-fs.target
+ConditionPathExists=${XANMOD_CLEANUP_LIST}
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env bash ${XANMOD_CLEANUP_SCRIPT}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable netkit-xanmod-cleanup.service
+
+    warning "旧内核不会在当前会话删除。首次成功启动 XanMod 后将自动静默清理："
+    for package in "${old_packages[@]}"; do
+        value "$package"
+    done
 }
 
 [[ $EUID -eq 0 ]] || fail "请使用 root 用户运行。"
@@ -161,6 +239,11 @@ CODENAME="${VERSION_CODENAME:-}"
 ARCH=$(uname -m)
 DPKG_ARCH=$(dpkg --print-architecture 2>/dev/null || true)
 CURRENT_KERNEL=$(uname -r)
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFFOLD=1
+
 
 [[ "$ARCH" == "x86_64" && "$DPKG_ARCH" == "amd64" ]] || \
     fail "XanMod 官方仓库仅支持 64 位 x86（amd64）；当前架构：${ARCH}/${DPKG_ARCH:-unknown}。"
@@ -204,18 +287,17 @@ kv "当前内核      :" "$CURRENT_KERNEL"
 kv "预选软件包    :" "$EXPECTED_PACKAGE"
 
 warning "安装新内核存在启动失败风险，请先确认服务商支持自定义内核并备份重要数据。"
-warning "安装成功后会直接删除全部非 XanMod 内核，无法从旧内核回退。"
+warning "首次成功启动 XanMod 后会自动静默删除全部非 XanMod 内核，之后无法从旧内核回退。"
+warning "若重启后没有进入 XanMod，清理服务不会删除现有内核。"
 warning "NVIDIA、OpenZFS、VirtualBox 等 DKMS 模块可能不兼容。"
 info "此功能只替换内核，不修改 BBR/FQ；请在重启后使用“系统调优”启用。"
 
-if ! confirm_action "确认安装 XanMod 并删除旧内核吗？"; then
-    warning "已取消。"
-    exit 0
-fi
-
+protect_running_kernel
+repair_dpkg_state
 info "正在安装仓库依赖..."
-apt update
-apt install -y ca-certificates wget gnupg
+apt-get -o DPkg::Lock::Timeout=300 update
+apt-get -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confold \
+    install -y ca-certificates wget gnupg
 
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -233,13 +315,14 @@ deb [signed-by=${XANMOD_KEYRING}] ${XANMOD_REPOSITORY} ${CODENAME} main
 EOF
 
 info "正在刷新 XanMod 软件包索引..."
-apt update
+apt-get -o DPkg::Lock::Timeout=300 update
 
 XANMOD_PACKAGE=$(select_xanmod_package "$PSABI_LEVEL") || \
     fail "仓库中没有适合 x86-64-v${PSABI_LEVEL} 的 XanMod 内核包。"
 
 info "正在安装 ${XANMOD_PACKAGE}..."
-apt install -y "$XANMOD_PACKAGE"
+apt-get -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confold \
+    install -y "$XANMOD_PACKAGE"
 
 if ! compgen -G '/boot/vmlinuz-*xanmod*' >/dev/null; then
     fail "未在 /boot 检测到 XanMod 内核，已停止删除旧内核。"
@@ -249,7 +332,11 @@ if ! compgen -G '/boot/initrd.img-*xanmod*' >/dev/null; then
     fail "未在 /boot 检测到 XanMod initrd，已停止删除旧内核。"
 fi
 
-purge_old_kernels
+if [[ "$CURRENT_KERNEL" == *xanmod* ]]; then
+    purge_old_kernels
+else
+    schedule_old_kernel_cleanup
+fi
 
 if command -v update-grub >/dev/null 2>&1; then
     info "正在更新 GRUB 启动项..."
@@ -259,5 +346,10 @@ fi
 banner "XanMod 内核替换完成" "$GREEN"
 kv "已安装软件包:" "$XANMOD_PACKAGE"
 kv "当前运行内核:" "$CURRENT_KERNEL"
-info "旧内核已删除，请重启后执行 uname -r，确认输出包含 xanmod。"
+if [[ "$CURRENT_KERNEL" == *xanmod* ]]; then
+    info "非 XanMod 内核已静默删除。"
+else
+    info "旧内核清理已安排在首次成功启动 XanMod 后自动执行。"
+fi
+info "请重启后执行 uname -r，确认输出包含 xanmod。"
 info "确认新内核启动成功后，再从“系统调优”应用 BBR + FQ。"
