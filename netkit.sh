@@ -9,6 +9,9 @@ source "${SCRIPT_DIR}/lib/output.sh"
 
 INSTALL_SCRIPT="${SCRIPT_DIR}/core/xray-core.sh"
 SING_BOX_INSTALL_SCRIPT="${SCRIPT_DIR}/core/sing-box-core.sh"
+SING_BOX_VLESS_SCRIPT="${SCRIPT_DIR}/core/sing-box-vless-reality.sh"
+SING_BOX_SS_SCRIPT="${SCRIPT_DIR}/core/sing-box-shadowsocks.sh"
+SING_BOX_BUILD_CONFIG_SCRIPT="${SCRIPT_DIR}/config/sing-box-build-config.sh"
 VLESS_SCRIPT="${SCRIPT_DIR}/core/vless-reality.sh"
 SS_SCRIPT="${SCRIPT_DIR}/core/shadowsocks.sh"
 BUILD_CONFIG_SCRIPT="${SCRIPT_DIR}/config/build_config.sh"
@@ -20,6 +23,8 @@ PROTOCOL_DIR="${XRAY_DIR}/protocols"
 CLIENT_DIR="${XRAY_DIR}/client"
 SING_BOX_SERVICE="sing-box"
 SING_BOX_DIR="/etc/sing-box"
+SING_BOX_PROTOCOL_DIR="${SING_BOX_DIR}/protocols"
+SING_BOX_CLIENT_DIR="${SING_BOX_DIR}/client"
 IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-netkit-ipv6.conf"
 SYSCTL_CONFIG="/etc/sysctl.d/99-z-bbr.conf"
 SWAPFILE="/swapfile"
@@ -192,6 +197,28 @@ rebuild_or_stop_xray(){
     fi
 }
 
+rebuild_or_stop_sing_box(){
+    local found=false
+    local file
+
+    for file in "$SING_BOX_PROTOCOL_DIR"/*.json; do
+        if [[ -f "$file" ]]; then
+            found=true
+            break
+        fi
+    done
+
+    if $found; then
+        bash "$SING_BOX_BUILD_CONFIG_SCRIPT"
+        systemctl restart "$SING_BOX_SERVICE"
+        success "Sing-box 配置已重建并重启。"
+    else
+        rm -f "${SING_BOX_DIR}/config.json"
+        systemctl stop "$SING_BOX_SERVICE" 2>/dev/null || true
+        warning "已无协议配置，Sing-box 已停止。"
+    fi
+}
+
 install_xray(){
     run_script "$INSTALL_SCRIPT"
     pause
@@ -361,6 +388,85 @@ install_sing_box(){
     pause
 }
 
+configure_sing_box_vless(){
+    run_script "$SING_BOX_VLESS_SCRIPT"
+    pause
+}
+
+configure_sing_box_shadowsocks(){
+    run_script "$SING_BOX_SS_SCRIPT"
+    pause
+}
+
+uninstall_sing_box_vless(){
+    header "卸载 Sing-box VLESS + TCP + XTLS Vision + REALITY"
+    warning "正在卸载 Sing-box VLESS + TCP + XTLS Vision + REALITY..."
+    rm -f "${SING_BOX_PROTOCOL_DIR}/vless.json" "${SING_BOX_CLIENT_DIR}/vless.txt"
+    rebuild_or_stop_sing_box
+    pause
+}
+
+uninstall_sing_box_shadowsocks(){
+    header "卸载 Sing-box Shadowsocks"
+    warning "正在卸载 Sing-box Shadowsocks..."
+    rm -f "${SING_BOX_PROTOCOL_DIR}/shadowsocks.json" "${SING_BOX_CLIENT_DIR}/shadowsocks.txt"
+    rebuild_or_stop_sing_box
+    pause
+}
+
+show_sing_box_client_info(){
+    header "Sing-box 连接信息"
+
+    section "VLESS + TCP + XTLS Vision + REALITY" "$YELLOW"
+    echo
+    if [[ -f "${SING_BOX_CLIENT_DIR}/vless.txt" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" == "VLESS Link:" ]]; then
+                label " VLESS Link"
+                echo
+                continue
+            fi
+            if [[ "$line" == "Mihomo / Clash:" ]]; then
+                echo
+                divider "$CYAN" "-"
+                echo
+                label " Mihomo / Clash YAML"
+                echo
+                continue
+            fi
+            value "$line"
+        done < "${SING_BOX_CLIENT_DIR}/vless.txt"
+    else
+        warning "未配置"
+    fi
+
+    echo
+    section "Shadowsocks" "$YELLOW"
+    echo
+    if [[ -f "${SING_BOX_CLIENT_DIR}/shadowsocks.txt" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" == "SS Link:" ]]; then
+                label " Shadowsocks Link"
+                echo
+                continue
+            fi
+            if [[ "$line" == "Mihomo / Clash:" ]]; then
+                echo
+                divider "$CYAN" "-"
+                echo
+                label " Mihomo / Clash YAML"
+                echo
+                continue
+            fi
+            value "$line"
+        done < "${SING_BOX_CLIENT_DIR}/shadowsocks.txt"
+    else
+        warning "未配置"
+    fi
+
+    pause
+}
+
 show_sing_box_status(){
     header "Sing-box 状态"
 
@@ -489,7 +595,7 @@ show_current_status(){
     fi
 
     echo
-    section "连接配置" "$YELLOW"
+    section "Xray 连接配置" "$YELLOW"
     echo
     if [[ -f "${CLIENT_DIR}/vless.txt" ]]; then
         kv "VLESS + TCP + XTLS Vision + REALITY    :" "已配置"
@@ -498,6 +604,21 @@ show_current_status(){
     fi
 
     if [[ -f "${CLIENT_DIR}/shadowsocks.txt" ]]; then
+        kv "Shadowsocks      :" "已配置"
+    else
+        kv "Shadowsocks      :" "未配置"
+    fi
+
+    echo
+    section "Sing-box 连接配置" "$YELLOW"
+    echo
+    if [[ -f "${SING_BOX_CLIENT_DIR}/vless.txt" ]]; then
+        kv "VLESS + TCP + XTLS Vision + REALITY    :" "已配置"
+    else
+        kv "VLESS + TCP + XTLS Vision + REALITY    :" "未配置"
+    fi
+
+    if [[ -f "${SING_BOX_CLIENT_DIR}/shadowsocks.txt" ]]; then
         kv "Shadowsocks      :" "已配置"
     else
         kv "Shadowsocks      :" "未配置"
@@ -1499,9 +1620,14 @@ sing_box_menu(){
     while true; do
         header "Sing-box"
         menu_item "1" "安装 / 更新 Sing-box"
-        menu_item "2" "查看 Sing-box 状态"
-        menu_item "3" "重启 Sing-box"
-        menu_item "4" "卸载 Sing-box"
+        menu_item "2" "安装 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "3" "卸载 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "4" "安装 Shadowsocks"
+        menu_item "5" "卸载 Shadowsocks"
+        menu_item "6" "查看连接信息"
+        menu_item "7" "查看 Sing-box 状态"
+        menu_item "8" "重启 Sing-box"
+        menu_item "9" "卸载 Sing-box"
         echo
         menu_item "0" "返回主菜单"
         echo
@@ -1511,9 +1637,14 @@ sing_box_menu(){
 
         case "$choice" in
             1) install_sing_box ;;
-            2) show_sing_box_status ;;
-            3) restart_sing_box ;;
-            4) uninstall_sing_box ;;
+            2) configure_sing_box_vless ;;
+            3) uninstall_sing_box_vless ;;
+            4) configure_sing_box_shadowsocks ;;
+            5) uninstall_sing_box_shadowsocks ;;
+            6) show_sing_box_client_info ;;
+            7) show_sing_box_status ;;
+            8) restart_sing_box ;;
+            9) uninstall_sing_box ;;
             0) return ;;
             *) error "无效选择。"; pause ;;
         esac

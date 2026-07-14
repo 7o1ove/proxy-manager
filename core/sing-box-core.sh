@@ -8,6 +8,7 @@ SCRIPT_DIR="/root/netkit"
 source "${SCRIPT_DIR}/lib/output.sh"
 
 SING_BOX_DIR="/etc/sing-box"
+BUILD_CONFIG_SCRIPT="${SCRIPT_DIR}/config/sing-box-build-config.sh"
 REQUESTED_VERSION="${1:-}"
 INSTALL_ARGS=()
 
@@ -75,8 +76,22 @@ info "正在启用 Sing-box 服务..."
 
 systemctl enable sing-box
 
-# Stop the service until a valid protocol configuration is generated.
-systemctl stop sing-box 2>/dev/null || true
+HAS_PROTOCOL=false
+
+for file in "${SING_BOX_DIR}/protocols"/*.json; do
+    if [[ -f "$file" ]]; then
+        HAS_PROTOCOL=true
+        break
+    fi
+done
+
+if $HAS_PROTOCOL; then
+    bash "$BUILD_CONFIG_SCRIPT"
+    systemctl restart sing-box
+else
+    # Stop a fresh installation until a valid protocol configuration is generated.
+    systemctl stop sing-box 2>/dev/null || true
+fi
 
 banner "Sing-box 安装完成" "$GREEN"
 
@@ -92,5 +107,9 @@ echo
 divider "$GREEN"
 success "正式稳定版安装完成。"
 success "Sing-box 服务已设置为开机启动。"
-success "服务会在协议配置完成后启动。"
+if $HAS_PROTOCOL; then
+    success "现有协议配置已重建，Sing-box 服务已重启。"
+else
+    success "服务会在协议配置完成后启动。"
+fi
 divider "$GREEN"
