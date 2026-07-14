@@ -1,6 +1,6 @@
 # NetKit
 
-一个用于管理网络服务、连接协议以及常用 VPS 系统工具的 Bash 管理脚本。当前支持 Xray Core 与 Sing-box；两个核心均可配置 VLESS + TCP + XTLS Vision + REALITY 和 Shadowsocks。
+一个用于管理网络服务、连接协议以及常用 VPS 系统工具的 Bash 管理脚本。当前支持 Xray Core 与 Sing-box。
 
 ## 项目定位
 
