@@ -107,11 +107,13 @@ SERVER_IP=$(
 )
 
 read -r -p "$(prompt_text "端口（留空随机）: ")" PORT
+cancel_input "$PORT" && exit "$INPUT_CANCEL_STATUS"
 
 PORT=$(resolve_port "$PORT") || exit 1
 
 while true; do
     read -r -p "$(prompt_text "Reality SNI（默认 icloud.com）: ")" SNI_INPUT
+    cancel_input "$SNI_INPUT" && exit "$INPUT_CANCEL_STATUS"
 
     if ! SNI=$(normalize_reality_sni "$SNI_INPUT"); then
         warning "请重新输入 Reality SNI。"
@@ -161,6 +163,8 @@ info "正在生成 Short ID..."
 SHORT_ID=$(openssl rand -hex 8)
 
 info "正在写入 VLESS + TCP + XTLS Vision + REALITY 协议配置..."
+
+OLD_PORT=$(json_number_field "$PROTOCOL_CONFIG" "port")
 
 PROTOCOL_BACKUP=""
 if [[ -f "$PROTOCOL_CONFIG" ]]; then
@@ -255,6 +259,10 @@ if ! systemctl is-active --quiet xray; then
     journalctl -u xray -n 20 --no-pager
 
     exit 1
+fi
+
+if [[ -n "$OLD_PORT" && "$OLD_PORT" != "$PORT" ]]; then
+    remove_ufw_port_rule "$OLD_PORT" tcp
 fi
 
 LINK_HOST=$(uri_host "$SERVER_IP")

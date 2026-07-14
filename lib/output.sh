@@ -6,6 +6,7 @@ YELLOW="\033[93m"
 CYAN="\033[96m"
 WHITE="\033[97m"
 RESET="\033[0m"
+INPUT_CANCEL_STATUS=10
 
 pause(){
     echo
@@ -43,8 +44,32 @@ confirm_action(){
     [[ "$answer" =~ ^[Yy]$ ]]
 }
 
+cancel_input(){
+    [[ "$1" == "0" ]] || return 1
+    warning "已取消。"
+}
+
 valid_port(){
     [[ "$1" =~ ^[0-9]+$ ]] && [[ "$1" -ge 1 ]] && [[ "$1" -le 65535 ]]
+}
+
+json_number_field(){
+    local file="$1"
+    local field="$2"
+
+    [[ -f "$file" ]] || return 0
+    sed -nE "s/.*\"${field}\"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p" "$file" | head -n1
+}
+
+remove_ufw_port_rule(){
+    local port="$1"
+    local protocol="$2"
+
+    [[ -n "$port" ]] || return 0
+    valid_port "$port" || return 0
+    command -v ufw >/dev/null 2>&1 || return 0
+
+    ufw --force delete allow "${port}/${protocol}" >/dev/null 2>&1 || true
 }
 
 port_in_use(){

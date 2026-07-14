@@ -56,6 +56,7 @@ SERVER_IP=$(
 )
 
 read -r -p "$(prompt_text "端口（留空随机）: ")" PORT
+cancel_input "$PORT" && exit "$INPUT_CANCEL_STATUS"
 
 PORT=$(resolve_port "$PORT") || exit 1
 
@@ -64,6 +65,8 @@ info "正在生成密码..."
 PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
 
 info "正在保存 Shadowsocks 协议配置..."
+
+OLD_PORT=$(json_number_field "$PROTOCOL_CONFIG" "port")
 
 PROTOCOL_BACKUP=""
 if [[ -f "$PROTOCOL_CONFIG" ]]; then
@@ -139,6 +142,11 @@ if ! systemctl is-active --quiet xray; then
     banner " Xray 启动失败" "$RED"
     journalctl -u xray -n 20 --no-pager
     exit 1
+fi
+
+if [[ -n "$OLD_PORT" && "$OLD_PORT" != "$PORT" ]]; then
+    remove_ufw_port_rule "$OLD_PORT" tcp
+    remove_ufw_port_rule "$OLD_PORT" udp
 fi
 
 SS_BASE64=$(printf "%s:%s" "$METHOD" "$PASSWORD" | base64 | tr -d '\n')

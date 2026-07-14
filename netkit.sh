@@ -56,6 +56,14 @@ run_script(){
     bash "$file" "$@"
 }
 
+run_script_and_pause(){
+    local status=0
+
+    run_script "$@" || status=$?
+    [[ "$status" -eq "$INPUT_CANCEL_STATUS" ]] && return 0
+    pause
+}
+
 SELECTED_VERSION=""
 
 select_stable_version(){
@@ -69,6 +77,8 @@ select_stable_version(){
     echo
     read -r -p "$(prompt_text "请输入 ${core_name} 版本号（如 v1.13.12，回车使用最新稳定版）: ")" input
     input=$(trim_edges "$input")
+
+    cancel_input "$input" && return "$INPUT_CANCEL_STATUS"
 
     if [[ -z "$input" ]]; then
         return 0
@@ -225,28 +235,35 @@ install_xray(){
 }
 
 configure_vless(){
-    run_script "$VLESS_SCRIPT"
-    pause
+    run_script_and_pause "$VLESS_SCRIPT"
 }
 
 configure_shadowsocks(){
-    run_script "$SS_SCRIPT"
-    pause
+    run_script_and_pause "$SS_SCRIPT"
 }
 
 uninstall_vless(){
+    local port
+
     header "卸载 VLESS + TCP + XTLS Vision + REALITY"
     warning "正在卸载 VLESS + TCP + XTLS Vision + REALITY..."
+    port=$(json_number_field "${PROTOCOL_DIR}/vless.json" "port")
     rm -f "${PROTOCOL_DIR}/vless.json" "${CLIENT_DIR}/vless.txt"
     rebuild_or_stop_xray
+    remove_ufw_port_rule "$port" tcp
     pause
 }
 
 uninstall_shadowsocks(){
+    local port
+
     header "卸载 Shadowsocks"
     warning "正在卸载 Shadowsocks..."
+    port=$(json_number_field "${PROTOCOL_DIR}/shadowsocks.json" "port")
     rm -f "${PROTOCOL_DIR}/shadowsocks.json" "${CLIENT_DIR}/shadowsocks.txt"
     rebuild_or_stop_xray
+    remove_ufw_port_rule "$port" tcp
+    remove_ufw_port_rule "$port" udp
     pause
 }
 
@@ -413,9 +430,13 @@ restart_xray(){
 }
 
 update_xray(){
+    local selection_status=0
+
     header "安装 / 更新 Xray Core"
 
-    if ! select_stable_version "Xray Core" "XTLS/Xray-core"; then
+    select_stable_version "Xray Core" "XTLS/Xray-core" || selection_status=$?
+    [[ "$selection_status" -eq "$INPUT_CANCEL_STATUS" ]] && return
+    if [[ "$selection_status" -ne 0 ]]; then
         pause
         return
     fi
@@ -443,9 +464,13 @@ update_xray(){
 }
 
 install_sing_box(){
+    local selection_status=0
+
     header "安装 / 更新 Sing-box"
 
-    if ! select_stable_version "Sing-box" "SagerNet/sing-box"; then
+    select_stable_version "Sing-box" "SagerNet/sing-box" || selection_status=$?
+    [[ "$selection_status" -eq "$INPUT_CANCEL_STATUS" ]] && return
+    if [[ "$selection_status" -ne 0 ]]; then
         pause
         return
     fi
@@ -461,28 +486,35 @@ install_sing_box(){
 }
 
 configure_sing_box_vless(){
-    run_script "$SING_BOX_VLESS_SCRIPT"
-    pause
+    run_script_and_pause "$SING_BOX_VLESS_SCRIPT"
 }
 
 configure_sing_box_shadowsocks(){
-    run_script "$SING_BOX_SS_SCRIPT"
-    pause
+    run_script_and_pause "$SING_BOX_SS_SCRIPT"
 }
 
 uninstall_sing_box_vless(){
+    local port
+
     header "卸载 Sing-box VLESS + TCP + XTLS Vision + REALITY"
     warning "正在卸载 Sing-box VLESS + TCP + XTLS Vision + REALITY..."
+    port=$(json_number_field "${SING_BOX_PROTOCOL_DIR}/vless.json" "listen_port")
     rm -f "${SING_BOX_PROTOCOL_DIR}/vless.json" "${SING_BOX_CLIENT_DIR}/vless.txt"
     rebuild_or_stop_sing_box
+    remove_ufw_port_rule "$port" tcp
     pause
 }
 
 uninstall_sing_box_shadowsocks(){
+    local port
+
     header "卸载 Sing-box Shadowsocks"
     warning "正在卸载 Sing-box Shadowsocks..."
+    port=$(json_number_field "${SING_BOX_PROTOCOL_DIR}/shadowsocks.json" "listen_port")
     rm -f "${SING_BOX_PROTOCOL_DIR}/shadowsocks.json" "${SING_BOX_CLIENT_DIR}/shadowsocks.txt"
     rebuild_or_stop_sing_box
+    remove_ufw_port_rule "$port" tcp
+    remove_ufw_port_rule "$port" udp
     pause
 }
 
@@ -554,6 +586,8 @@ restart_sing_box(){
 }
 
 uninstall_sing_box(){
+    local vless_port shadowsocks_port
+
     header "卸载 Sing-box"
     warning "即将卸载 Sing-box，并删除其配置和连接信息。"
 
@@ -563,7 +597,13 @@ uninstall_sing_box(){
         return
     fi
 
+    vless_port=$(json_number_field "${SING_BOX_PROTOCOL_DIR}/vless.json" "listen_port")
+    shadowsocks_port=$(json_number_field "${SING_BOX_PROTOCOL_DIR}/shadowsocks.json" "listen_port")
+
     systemctl disable --now "$SING_BOX_SERVICE" 2>/dev/null || true
+    remove_ufw_port_rule "$vless_port" tcp
+    remove_ufw_port_rule "$shadowsocks_port" tcp
+    remove_ufw_port_rule "$shadowsocks_port" udp
 
     if dpkg-query -W -f='${Status}' sing-box 2>/dev/null | grep -q "ok installed"; then
         apt-get remove --purge -y sing-box
@@ -582,6 +622,8 @@ uninstall_sing_box(){
 }
 
 uninstall_xray_core(){
+    local vless_port shadowsocks_port
+
     header "卸载 Xray Core"
     warning "即将卸载 Xray Core，并删除 Xray 下的 VLESS + TCP + XTLS Vision + REALITY、Shadowsocks 配置和连接信息。"
 
@@ -591,7 +633,13 @@ uninstall_xray_core(){
         return
     fi
 
+    vless_port=$(json_number_field "${PROTOCOL_DIR}/vless.json" "port")
+    shadowsocks_port=$(json_number_field "${PROTOCOL_DIR}/shadowsocks.json" "port")
+
     systemctl disable --now "$XRAY_SERVICE" 2>/dev/null || true
+    remove_ufw_port_rule "$vless_port" tcp
+    remove_ufw_port_rule "$shadowsocks_port" tcp
+    remove_ufw_port_rule "$shadowsocks_port" udp
     bash <(
         curl -fsSL -L \
         https://github.com/XTLS/Xray-install/raw/main/install-release.sh
@@ -677,6 +725,7 @@ show_ssh_status(){
 set_ssh_port(){
     header "设置 SSH 端口"
     read -r -p "$(prompt_text "请输入新的 SSH 端口: ")" ssh_port
+    cancel_input "$ssh_port" && return
 
     if ! valid_port "$ssh_port"; then
         error "SSH 端口无效。"
@@ -715,6 +764,7 @@ set_ssh_port(){
 set_ssh_key(){
     header "设置 SSH 密钥"
     read -r -p "$(prompt_text "请输入 SSH 公钥: ")" public_key
+    cancel_input "$public_key" && return
 
     if [[ -z "$public_key" ]]; then
         error "SSH 公钥不能为空。"
@@ -770,6 +820,7 @@ install_ufw(){
 ufw_add_ip(){
     header "允许 IP"
     read -r -p "$(prompt_text "请输入允许的 IP: ")" ip
+    cancel_input "$ip" && return
     [[ -z "$ip" ]] && error "IP 不能为空。" && pause && return
     [[ "$ip" =~ ^[0-9]+$ ]] && error "这是端口，不是 IP。请使用“允许端口”。" && pause && return
     ufw allow from "$ip"
@@ -780,6 +831,7 @@ ufw_add_ip(){
 ufw_delete_ip(){
     header "删除 IP"
     read -r -p "$(prompt_text "请输入要删除的 IP: ")" ip
+    cancel_input "$ip" && return
     [[ -z "$ip" ]] && error "IP 不能为空。" && pause && return
     [[ "$ip" =~ ^[0-9]+$ ]] && error "这是端口，不是 IP。请使用“删除端口”。" && pause && return
     ufw --force delete allow from "$ip" || true
@@ -790,6 +842,7 @@ ufw_delete_ip(){
 ufw_add_port(){
     header "允许端口"
     read -r -p "$(prompt_text "请输入要允许的端口: ")" port
+    cancel_input "$port" && return
     [[ -z "$port" ]] && error "端口不能为空。" && pause && return
     valid_port "$port" || { error "端口无效。"; pause; return; }
 
@@ -802,6 +855,7 @@ ufw_add_port(){
 ufw_delete_port(){
     header "删除端口"
     read -r -p "$(prompt_text "请输入要删除的端口: ")" port
+    cancel_input "$port" && return
     [[ -z "$port" ]] && error "端口不能为空。" && pause && return
     valid_port "$port" || { error "端口无效。"; pause; return; }
 
@@ -817,6 +871,7 @@ ufw_batch_add_port(){
     local port
 
     read -r -p "$(prompt_text "请输入要允许的端口（多个用空格分隔）: ")" input
+    cancel_input "$input" && return
     [[ -z "$input" ]] && error "端口不能为空。" && pause && return
     reject_comma_separator "$input" || return
 
@@ -839,6 +894,7 @@ ufw_batch_delete_port(){
     local port
 
     read -r -p "$(prompt_text "请输入要删除的端口（多个用空格分隔）: ")" input
+    cancel_input "$input" && return
     [[ -z "$input" ]] && error "端口不能为空。" && pause && return
     reject_comma_separator "$input" || return
 
@@ -861,6 +917,7 @@ ufw_batch_add_ip(){
     local ip
 
     read -r -p "$(prompt_text "请输入要允许的 IP/CIDR（多个用空格分隔）: ")" input
+    cancel_input "$input" && return
     [[ -z "$input" ]] && error "IP 不能为空。" && pause && return
     reject_comma_separator "$input" || return
 
@@ -882,6 +939,7 @@ ufw_batch_delete_ip(){
     local ip
 
     read -r -p "$(prompt_text "请输入要删除的 IP/CIDR（多个用空格分隔）: ")" input
+    cancel_input "$input" && return
     [[ -z "$input" ]] && error "IP 不能为空。" && pause && return
     reject_comma_separator "$input" || return
 
@@ -1000,6 +1058,7 @@ fail2ban_unban_ip(){
     local ip
 
     read -r -p "$(prompt_text "请输入要解封的 IP: ")" ip
+    cancel_input "$ip" && return
 
     if [[ -z "$ip" ]]; then
         error "IP 不能为空。"
@@ -1432,6 +1491,7 @@ configure_mtu(){
         value "$current_mtu"
         echo
         read -r -p "$(prompt_text "Enter MTU [default: ${MTU_VALUE}]: ")" new_mtu
+        cancel_input "$new_mtu" && return
         new_mtu=${new_mtu:-$MTU_VALUE}
 
         if ! validate_mtu_value "$new_mtu"; then
@@ -1564,11 +1624,11 @@ xray_core_menu(){
     while true; do
         header "Xray Core"
         menu_item "1" "安装 / 更新 Xray Core"
-        menu_item "2" "配置 VLESS + TCP + XTLS Vision + REALITY"
-        menu_item "3" "卸载 VLESS + TCP + XTLS Vision + REALITY"
-        menu_item "4" "配置 Shadowsocks"
-        menu_item "5" "卸载 Shadowsocks"
-        menu_item "6" "查看 Xray Core 状态"
+        menu_item "2" "查看 Xray Core 状态"
+        menu_item "3" "配置 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "4" "卸载 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "5" "配置 Shadowsocks"
+        menu_item "6" "卸载 Shadowsocks"
         menu_item "7" "重启 Xray"
         menu_item "8" "卸载 Xray Core"
         echo
@@ -1580,11 +1640,11 @@ xray_core_menu(){
 
         case "$choice" in
             1) update_xray ;;
-            2) configure_vless ;;
-            3) uninstall_vless ;;
-            4) configure_shadowsocks ;;
-            5) uninstall_shadowsocks ;;
-            6) show_xray_status ;;
+            2) show_xray_status ;;
+            3) configure_vless ;;
+            4) uninstall_vless ;;
+            5) configure_shadowsocks ;;
+            6) uninstall_shadowsocks ;;
             7) restart_xray ;;
             8) uninstall_xray_core ;;
             0) return ;;
@@ -1597,11 +1657,11 @@ sing_box_menu(){
     while true; do
         header "Sing-box"
         menu_item "1" "安装 / 更新 Sing-box"
-        menu_item "2" "安装 VLESS + TCP + XTLS Vision + REALITY"
-        menu_item "3" "卸载 VLESS + TCP + XTLS Vision + REALITY"
-        menu_item "4" "安装 Shadowsocks"
-        menu_item "5" "卸载 Shadowsocks"
-        menu_item "6" "查看 Sing-box 状态"
+        menu_item "2" "查看 Sing-box 状态"
+        menu_item "3" "安装 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "4" "卸载 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "5" "安装 Shadowsocks"
+        menu_item "6" "卸载 Shadowsocks"
         menu_item "7" "重启 Sing-box"
         menu_item "8" "卸载 Sing-box"
         echo
@@ -1613,11 +1673,11 @@ sing_box_menu(){
 
         case "$choice" in
             1) install_sing_box ;;
-            2) configure_sing_box_vless ;;
-            3) uninstall_sing_box_vless ;;
-            4) configure_sing_box_shadowsocks ;;
-            5) uninstall_sing_box_shadowsocks ;;
-            6) show_sing_box_status ;;
+            2) show_sing_box_status ;;
+            3) configure_sing_box_vless ;;
+            4) uninstall_sing_box_vless ;;
+            5) configure_sing_box_shadowsocks ;;
+            6) uninstall_sing_box_shadowsocks ;;
             7) restart_sing_box ;;
             8) uninstall_sing_box ;;
             0) return ;;

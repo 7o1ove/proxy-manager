@@ -70,6 +70,7 @@ SERVER_IP=$(
 )
 
 read -r -p "$(prompt_text "端口（留空随机）: ")" PORT
+cancel_input "$PORT" && exit "$INPUT_CANCEL_STATUS"
 PORT=$(resolve_port "$PORT") || exit 1
 
 info "正在生成 Shadowsocks 2022 密钥..."
@@ -81,6 +82,8 @@ if [[ -z "$PASSWORD" ]]; then
 fi
 
 info "正在写入 Sing-box Shadowsocks 协议配置..."
+
+OLD_PORT=$(json_number_field "$PROTOCOL_CONFIG" "listen_port")
 
 PROTOCOL_BACKUP=""
 if [[ -f "$PROTOCOL_CONFIG" ]]; then
@@ -129,6 +132,11 @@ if ! systemctl is-active --quiet sing-box; then
     banner "Sing-box 启动失败" "$RED"
     journalctl -u sing-box -n 20 --no-pager
     exit 1
+fi
+
+if [[ -n "$OLD_PORT" && "$OLD_PORT" != "$PORT" ]]; then
+    remove_ufw_port_rule "$OLD_PORT" tcp
+    remove_ufw_port_rule "$OLD_PORT" udp
 fi
 
 SS_BASE64=$(printf "%s:%s" "$METHOD" "$PASSWORD" | base64 | tr '/+' '_-' | tr -d '=\n')
