@@ -1,6 +1,6 @@
 # NetKit
 
-一个用于管理网络服务、连接协议以及常用 VPS 系统工具的 Bash 管理脚本。当前支持 Xray Core 与 Sing-box。
+一个用于管理网络服务、连接协议以及常用 VPS 系统工具的 Bash 管理脚本。当前支持 Xray Core、Sing-box 与 Mihomo。
 
 ## 项目定位
 
@@ -27,6 +27,25 @@ apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL 
 ```
 
 进入 NetKit 管理菜单。
+
+## Mihomo
+
+Mihomo 菜单支持安装 / 更新正式稳定版内核，以及管理以下服务端入站：
+
+- VLESS + TCP + XTLS Vision + REALITY，UDP 已开启。
+- Shadowsocks 2022，TCP 与 UDP 均已开启。
+
+Mihomo 主配置保持最简直连模式，不生成分流规则、策略组或代理出站：
+
+```yaml
+mode: direct
+log-level: error
+
+listeners:
+  # 入站配置
+```
+
+协议配置保存在 `/etc/mihomo/protocols`，连接信息保存在 `/etc/mihomo/client`，最终配置为 `/etc/mihomo/config.yaml`。
 
 ## DMIT 网络恢复
 
@@ -89,6 +108,8 @@ reboot
 - [XTLS/Xray-install](https://github.com/XTLS/Xray-install) 用于安装和更新 Xray Core。
 
 - [SagerNet/sing-box](https://github.com/SagerNet/sing-box) 使用官方稳定通道安装和更新 Sing-box。
+
+- [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) 提供 Mihomo 内核与 Listener 服务端能力。
 
 - [bin456789/reinstall](https://github.com/bin456789/reinstall) 用于 DD / 重装 Debian 系统。
 

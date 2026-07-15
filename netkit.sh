@@ -12,6 +12,10 @@ SING_BOX_INSTALL_SCRIPT="${SCRIPT_DIR}/core/sing-box-core.sh"
 SING_BOX_VLESS_SCRIPT="${SCRIPT_DIR}/core/sing-box-vless-reality.sh"
 SING_BOX_SS_SCRIPT="${SCRIPT_DIR}/core/sing-box-shadowsocks.sh"
 SING_BOX_BUILD_CONFIG_SCRIPT="${SCRIPT_DIR}/config/sing-box-build-config.sh"
+MIHOMO_INSTALL_SCRIPT="${SCRIPT_DIR}/core/mihomo-core.sh"
+MIHOMO_VLESS_SCRIPT="${SCRIPT_DIR}/core/mihomo-vless-reality.sh"
+MIHOMO_SS_SCRIPT="${SCRIPT_DIR}/core/mihomo-shadowsocks.sh"
+MIHOMO_BUILD_CONFIG_SCRIPT="${SCRIPT_DIR}/config/mihomo-build-config.sh"
 VLESS_SCRIPT="${SCRIPT_DIR}/core/vless-reality.sh"
 SS_SCRIPT="${SCRIPT_DIR}/core/shadowsocks.sh"
 BUILD_CONFIG_SCRIPT="${SCRIPT_DIR}/config/build_config.sh"
@@ -25,6 +29,10 @@ SING_BOX_SERVICE="sing-box"
 SING_BOX_DIR="/etc/sing-box"
 SING_BOX_PROTOCOL_DIR="${SING_BOX_DIR}/protocols"
 SING_BOX_CLIENT_DIR="${SING_BOX_DIR}/client"
+MIHOMO_SERVICE="mihomo"
+MIHOMO_DIR="/etc/mihomo"
+MIHOMO_PROTOCOL_DIR="${MIHOMO_DIR}/protocols"
+MIHOMO_CLIENT_DIR="${MIHOMO_DIR}/client"
 IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-netkit-ipv6.conf"
 SYSCTL_CONFIG="/etc/sysctl.d/99-z-bbr.conf"
 SWAPFILE="/swapfile"
@@ -229,6 +237,28 @@ rebuild_or_stop_sing_box(){
     fi
 }
 
+rebuild_or_stop_mihomo(){
+    local found=false
+    local file
+
+    for file in "$MIHOMO_PROTOCOL_DIR"/*.yaml; do
+        if [[ -f "$file" ]]; then
+            found=true
+            break
+        fi
+    done
+
+    if $found; then
+        bash "$MIHOMO_BUILD_CONFIG_SCRIPT"
+        systemctl restart "$MIHOMO_SERVICE"
+        success "Mihomo 配置已重建并重启。"
+    else
+        rm -f "${MIHOMO_DIR}/config.yaml"
+        systemctl stop "$MIHOMO_SERVICE" 2>/dev/null || true
+        warning "已无协议配置，Mihomo 已停止。"
+    fi
+}
+
 install_xray(){
     run_script "$INSTALL_SCRIPT"
     pause
@@ -367,6 +397,58 @@ show_client_info(){
             fi
             value "$line"
         done < "${SING_BOX_CLIENT_DIR}/shadowsocks.txt"
+    else
+        warning "未配置"
+    fi
+
+    echo
+    divider "$GREEN"
+    echo
+    section "Mihomo" "$GREEN"
+    echo
+    section "VLESS + TCP + XTLS Vision + REALITY" "$YELLOW"
+    echo
+    if [[ -f "${MIHOMO_CLIENT_DIR}/vless.txt" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" == "VLESS Link:" ]]; then
+                label " VLESS Link"
+                echo
+                continue
+            fi
+            if [[ "$line" == "Mihomo / Clash:" ]]; then
+                echo
+                divider "$CYAN" "-"
+                echo
+                label " Mihomo / Clash YAML"
+                echo
+                continue
+            fi
+            value "$line"
+        done < "${MIHOMO_CLIENT_DIR}/vless.txt"
+    else
+        warning "未配置"
+    fi
+
+    echo
+    section "Shadowsocks" "$YELLOW"
+    echo
+    if [[ -f "${MIHOMO_CLIENT_DIR}/shadowsocks.txt" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" == "SS Link:" ]]; then
+                label " Shadowsocks Link"
+                echo
+                continue
+            fi
+            if [[ "$line" == "Mihomo / Clash:" ]]; then
+                echo
+                divider "$CYAN" "-"
+                echo
+                label " Mihomo / Clash YAML"
+                echo
+                continue
+            fi
+            value "$line"
+        done < "${MIHOMO_CLIENT_DIR}/shadowsocks.txt"
     else
         warning "未配置"
     fi
@@ -616,6 +698,160 @@ uninstall_sing_box(){
         warning "Sing-box 程序仍然存在，请检查是否由其他方式安装。"
     else
         success "Sing-box 与其配置已卸载。"
+    fi
+
+    pause
+}
+
+install_mihomo(){
+    local selection_status=0
+
+    header "安装 / 更新 Mihomo"
+    select_stable_version "Mihomo" "MetaCubeX/mihomo" || selection_status=$?
+    [[ "$selection_status" -eq "$INPUT_CANCEL_STATUS" ]] && return
+    if [[ "$selection_status" -ne 0 ]]; then
+        pause
+        return
+    fi
+
+    if [[ -n "$SELECTED_VERSION" ]]; then
+        warning "正在安装 Mihomo ${SELECTED_VERSION}..."
+    else
+        warning "正在安装 Mihomo 最新正式稳定版..."
+    fi
+
+    run_script "$MIHOMO_INSTALL_SCRIPT" "$SELECTED_VERSION"
+    pause
+}
+
+configure_mihomo_vless(){
+    run_script_and_pause "$MIHOMO_VLESS_SCRIPT"
+}
+
+configure_mihomo_shadowsocks(){
+    run_script_and_pause "$MIHOMO_SS_SCRIPT"
+}
+
+uninstall_mihomo_vless(){
+    local port
+
+    header "卸载 Mihomo VLESS + TCP + XTLS Vision + REALITY"
+    warning "正在卸载 Mihomo VLESS + TCP + XTLS Vision + REALITY..."
+    port=$(yaml_number_field "${MIHOMO_PROTOCOL_DIR}/vless.yaml" "port")
+    rm -f "${MIHOMO_PROTOCOL_DIR}/vless.yaml" "${MIHOMO_CLIENT_DIR}/vless.txt"
+    rebuild_or_stop_mihomo
+    remove_ufw_port_rule "$port" tcp
+    remove_ufw_port_rule "$port" udp
+    pause
+}
+
+uninstall_mihomo_shadowsocks(){
+    local port
+
+    header "卸载 Mihomo Shadowsocks"
+    warning "正在卸载 Mihomo Shadowsocks..."
+    port=$(yaml_number_field "${MIHOMO_PROTOCOL_DIR}/shadowsocks.yaml" "port")
+    rm -f "${MIHOMO_PROTOCOL_DIR}/shadowsocks.yaml" "${MIHOMO_CLIENT_DIR}/shadowsocks.txt"
+    rebuild_or_stop_mihomo
+    remove_ufw_port_rule "$port" tcp
+    remove_ufw_port_rule "$port" udp
+    pause
+}
+
+show_mihomo_status(){
+    header "Mihomo 状态"
+
+    local status
+    status=$(systemctl is-active "$MIHOMO_SERVICE" 2>/dev/null || true)
+    status=${status:-unknown}
+
+    if [[ "$status" == "active" ]]; then
+        success "Mihomo 状态: 运行中"
+    else
+        warning "Mihomo 状态: ${status}"
+    fi
+
+    echo
+    if command -v mihomo >/dev/null 2>&1; then
+        label "版本"
+        value "$(mihomo -v | head -n1)"
+    else
+        warning "未检测到 Mihomo。"
+    fi
+
+    echo
+    section "协议配置" "$YELLOW"
+    echo
+    if [[ -f "${MIHOMO_CLIENT_DIR}/vless.txt" ]]; then
+        kv "VLESS + TCP + XTLS Vision + REALITY    :" "已配置（UDP 已开启）"
+    else
+        kv "VLESS + TCP + XTLS Vision + REALITY    :" "未配置"
+    fi
+
+    if [[ -f "${MIHOMO_CLIENT_DIR}/shadowsocks.txt" ]]; then
+        kv "Shadowsocks      :" "已配置（UDP 已开启）"
+    else
+        kv "Shadowsocks      :" "未配置"
+    fi
+
+    pause
+}
+
+restart_mihomo(){
+    header "重启 Mihomo"
+
+    if ! command -v mihomo >/dev/null 2>&1; then
+        error "未检测到 Mihomo，请先安装。"
+        pause
+        return
+    fi
+
+    info "正在重启 Mihomo..."
+    if ! systemctl restart "$MIHOMO_SERVICE"; then
+        error "Mihomo 重启失败。"
+        pause
+        return
+    fi
+
+    sleep 1
+    if systemctl is-active --quiet "$MIHOMO_SERVICE"; then
+        success "Mihomo 重启成功。"
+    else
+        error "Mihomo 重启失败。"
+    fi
+
+    pause
+}
+
+uninstall_mihomo(){
+    local vless_port shadowsocks_port
+
+    header "卸载 Mihomo"
+    warning "即将卸载 Mihomo，并删除其配置和连接信息。"
+
+    if ! confirm_action "确认卸载 Mihomo 吗？"; then
+        warning "已取消。"
+        pause
+        return
+    fi
+
+    vless_port=$(yaml_number_field "${MIHOMO_PROTOCOL_DIR}/vless.yaml" "port")
+    shadowsocks_port=$(yaml_number_field "${MIHOMO_PROTOCOL_DIR}/shadowsocks.yaml" "port")
+
+    systemctl disable --now "$MIHOMO_SERVICE" 2>/dev/null || true
+    remove_ufw_port_rule "$vless_port" tcp
+    remove_ufw_port_rule "$vless_port" udp
+    remove_ufw_port_rule "$shadowsocks_port" tcp
+    remove_ufw_port_rule "$shadowsocks_port" udp
+
+    rm -f /usr/local/bin/mihomo /etc/systemd/system/mihomo.service
+    rm -rf "$MIHOMO_DIR"
+    systemctl daemon-reload
+
+    if command -v mihomo >/dev/null 2>&1; then
+        warning "Mihomo 程序仍然存在，请检查是否由其他方式安装。"
+    else
+        success "Mihomo 与其配置已卸载。"
     fi
 
     pause
@@ -1686,6 +1922,39 @@ sing_box_menu(){
     done
 }
 
+mihomo_menu(){
+    while true; do
+        header "Mihomo"
+        menu_item "1" "安装 / 更新 Mihomo"
+        menu_item "2" "查看 Mihomo 状态"
+        menu_item "3" "安装 VLESS + TCP + XTLS Vision + REALITY（UDP）"
+        menu_item "4" "卸载 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "5" "安装 Shadowsocks（TCP/UDP）"
+        menu_item "6" "卸载 Shadowsocks"
+        menu_item "7" "重启 Mihomo"
+        menu_item "8" "卸载 Mihomo"
+        echo
+        menu_item "0" "返回主菜单"
+        echo
+
+        read -r -p "$(prompt_text "请选择: ")" choice
+        choice=${choice:-0}
+
+        case "$choice" in
+            1) install_mihomo ;;
+            2) show_mihomo_status ;;
+            3) configure_mihomo_vless ;;
+            4) uninstall_mihomo_vless ;;
+            5) configure_mihomo_shadowsocks ;;
+            6) uninstall_mihomo_shadowsocks ;;
+            7) restart_mihomo ;;
+            8) uninstall_mihomo ;;
+            0) return ;;
+            *) error "无效选择。"; pause ;;
+        esac
+    done
+}
+
 main_menu(){
     while true; do
         header
@@ -1693,6 +1962,7 @@ main_menu(){
         echo
         menu_item "1" "Xray Core"
         menu_item "2" "Sing-box"
+        menu_item "3" "Mihomo"
         echo
         section "连接信息" "$YELLOW"
         echo
@@ -1711,6 +1981,7 @@ main_menu(){
         case "$choice" in
             1) xray_core_menu ;;
             2) sing_box_menu ;;
+            3) mihomo_menu ;;
             11) show_client_info ;;
             66) tools_menu ;;
             0) exit 0 ;;

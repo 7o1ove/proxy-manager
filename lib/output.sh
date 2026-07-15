@@ -61,6 +61,14 @@ json_number_field(){
     sed -nE "s/.*\"${field}\"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p" "$file" | head -n1
 }
 
+yaml_number_field(){
+    local file="$1"
+    local field="$2"
+
+    [[ -f "$file" ]] || return 0
+    sed -nE "s/^[[:space:]]*${field}:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p" "$file" | head -n1
+}
+
 remove_ufw_port_rule(){
     local port="$1"
     local protocol="$2"
