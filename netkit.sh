@@ -1132,8 +1132,15 @@ ufw_batch_delete_port(){
     local index
     local display_index
     local record
+    local line
     local rule_number
     local port
+    local record_port
+    local protocol
+    local comment
+    local descriptor
+    local details
+    local -A seen_details=()
     local -a rule_records=()
     local -a ports=()
     local -a requested_indexes=()
@@ -1153,10 +1160,16 @@ ufw_batch_delete_port(){
         return
     fi
 
-    mapfile -t rule_records < <(
-        printf '%s\n' "$status_output" |
-        sed -nE 's/^\[[[:space:]]*([0-9]+)\][[:space:]]+([0-9]+)(\/(tcp|udp))?([[:space:]]|$).*/\1|\2/p'
-    )
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\[[[:space:]]*([0-9]+)\][[:space:]]+([0-9]+)(/(tcp|udp))?([[:space:]]|$) ]]; then
+            rule_number="${BASH_REMATCH[1]}"
+            port="${BASH_REMATCH[2]}"
+            protocol="${BASH_REMATCH[4]:-all}"
+            comment=""
+            [[ "$line" == *"#"* ]] && comment=$(trim_edges "${line#*#}")
+            rule_records+=("${rule_number}|${port}|${protocol}|${comment}")
+        fi
+    done <<< "$status_output"
 
     if [[ "${#rule_records[@]}" -eq 0 ]]; then
         warning "当前没有可删除的数字端口规则。"
@@ -1170,8 +1183,26 @@ ufw_batch_delete_port(){
 
     section "当前 UFW 端口" "$YELLOW"
     echo
+    label " 端口 / 协议 / 注释"
+    echo
     for index in "${!ports[@]}"; do
-        menu_item "$((index + 1))" "${ports[$index]}"
+        port="${ports[$index]}"
+        details=""
+        seen_details=()
+
+        for record in "${rule_records[@]}"; do
+            IFS='|' read -r rule_number record_port protocol comment <<< "$record"
+            [[ "$record_port" == "$port" ]] || continue
+
+            descriptor="$protocol"
+            [[ -n "$comment" ]] && descriptor+=" · ${comment}"
+            if [[ -z "${seen_details[$descriptor]:-}" ]]; then
+                seen_details["$descriptor"]=1
+                details+="${details:+; }${descriptor}"
+            fi
+        done
+
+        menu_item "$((index + 1))" "${port}  ${details}"
     done
 
     echo
@@ -1200,8 +1231,8 @@ ufw_batch_delete_port(){
     done
 
     for record in "${rule_records[@]}"; do
-        IFS='|' read -r rule_number port <<< "$record"
-        if [[ -n "${selected_ports[$port]:-}" ]]; then
+        IFS='|' read -r rule_number record_port protocol comment <<< "$record"
+        if [[ -n "${selected_ports[$record_port]:-}" ]]; then
             delete_rule_numbers+=("$rule_number")
         fi
     done

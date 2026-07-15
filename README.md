@@ -28,25 +28,6 @@ apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL 
 
 进入 NetKit 管理菜单。
 
-## Mihomo
-
-Mihomo 菜单支持安装 / 更新正式稳定版内核，以及管理以下服务端入站：
-
-- VLESS + TCP + XTLS Vision + REALITY，UDP 已开启。
-- Shadowsocks 2022，TCP 与 UDP 均已开启。
-
-Mihomo 主配置保持最简直连模式，不生成分流规则、策略组或代理出站：
-
-```yaml
-mode: direct
-log-level: error
-
-listeners:
-  # 入站配置
-```
-
-协议配置保存在 `/etc/mihomo/protocols`，连接信息保存在 `/etc/mihomo/client`，最终配置为 `/etc/mihomo/config.yaml`。
-
 ## DMIT 网络恢复
 
 ### DD Debian 13 后无法通过 SSH 连接
