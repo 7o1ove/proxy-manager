@@ -1126,22 +1126,97 @@ ufw_batch_add_port(){
 
 ufw_batch_delete_port(){
     header "删除端口"
+
     local input
+    local status_output
+    local index
+    local display_index
+    local record
+    local rule_number
     local port
+    local -a rule_records=()
+    local -a ports=()
+    local -a requested_indexes=()
+    local -a delete_rule_numbers=()
+    local -A selected_indexes=()
+    local -A selected_ports=()
 
-    read -r -p "$(prompt_text "请输入要删除的端口（多个用空格分隔）: ")" input
-    cancel_input "$input" && return
-    [[ -z "$input" ]] && error "端口不能为空。" && pause && return
-    reject_comma_separator "$input" || return
+    if ! command -v ufw >/dev/null 2>&1; then
+        warning "UFW 未安装。"
+        pause
+        return
+    fi
 
-    for port in $(split_items "$input"); do
-        valid_port "$port" || { error "端口无效: ${port}"; pause; return; }
+    if ! status_output=$(ufw status numbered); then
+        error "无法读取 UFW 端口规则。"
+        pause
+        return
+    fi
+
+    mapfile -t rule_records < <(
+        printf '%s\n' "$status_output" |
+        sed -nE 's/^\[[[:space:]]*([0-9]+)\][[:space:]]+([0-9]+)(\/(tcp|udp))?([[:space:]]|$).*/\1|\2/p'
+    )
+
+    if [[ "${#rule_records[@]}" -eq 0 ]]; then
+        warning "当前没有可删除的数字端口规则。"
+        pause
+        return
+    fi
+
+    mapfile -t ports < <(
+        printf '%s\n' "${rule_records[@]}" | cut -d '|' -f2 | sort -n -u
+    )
+
+    section "当前 UFW 端口" "$YELLOW"
+    echo
+    for index in "${!ports[@]}"; do
+        menu_item "$((index + 1))" "${ports[$index]}"
     done
 
-    for port in $(split_items "$input"); do
-        ufw --force delete allow "${port}/tcp" || true
-        ufw --force delete allow "${port}/udp" || true
-        success "已删除端口规则: ${port}/tcp 和 ${port}/udp"
+    echo
+    read -r -p "$(prompt_text "请输入要删除的序号（多个用空格分隔，0 取消）: ")" input
+    input=$(trim_edges "$input")
+    cancel_input "$input" && return
+
+    if [[ -z "$input" ]]; then
+        error "序号不能为空。"
+        pause
+        return
+    fi
+
+    read -r -a requested_indexes <<< "$input"
+
+    for display_index in "${requested_indexes[@]}"; do
+        if [[ ! "$display_index" =~ ^[0-9]+$ ]] || \
+           (( display_index < 1 || display_index > ${#ports[@]} )); then
+            error "无效序号：${display_index}。多个序号请使用空格分隔。"
+            pause
+            return
+        fi
+
+        selected_indexes["$display_index"]=1
+        selected_ports["${ports[$((display_index - 1))]}"]=1
+    done
+
+    for record in "${rule_records[@]}"; do
+        IFS='|' read -r rule_number port <<< "$record"
+        if [[ -n "${selected_ports[$port]:-}" ]]; then
+            delete_rule_numbers+=("$rule_number")
+        fi
+    done
+
+    mapfile -t delete_rule_numbers < <(
+        printf '%s\n' "${delete_rule_numbers[@]}" | sort -rn -u
+    )
+
+    for rule_number in "${delete_rule_numbers[@]}"; do
+        ufw --force delete "$rule_number" >/dev/null
+    done
+
+    for display_index in $(printf '%s\n' "${!selected_indexes[@]}" | sort -n); do
+        port="${ports[$((display_index - 1))]}"
+        success "已删除端口 ${port} 的 UFW 规则。"
     done
 
     pause

@@ -164,4 +164,10 @@ path_kv "主配置文件      :" "$CONFIG_FILE"
 path_kv "协议配置文件    :" "$PROTOCOL_CONFIG"
 path_kv "连接信息文件    :" "$CLIENT_FILE"
 echo
+label " Mihomo / Clash YAML"
+echo
+sed -n '/^Mihomo \/ Clash:/,$p' "$CLIENT_FILE" | tail -n +2 | while IFS= read -r line; do
+    value "$line"
+done
+echo
 divider "$GREEN"
