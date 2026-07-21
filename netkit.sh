@@ -233,30 +233,6 @@ show_client_info(){
     fi
 
     echo
-    section "Shadowsocks" "$YELLOW"
-    echo
-    if [[ -f "${MIHOMO_CLIENT_DIR}/shadowsocks.txt" ]]; then
-        while IFS= read -r line; do
-            if [[ "$line" == "SS Link:" ]]; then
-                label " Shadowsocks Link"
-                echo
-                continue
-            fi
-            if [[ "$line" == "Mihomo / Clash:" ]]; then
-                echo
-                divider "$CYAN" "-"
-                echo
-                label " Mihomo / Clash YAML"
-                echo
-                continue
-            fi
-            value "$line"
-        done < "${MIHOMO_CLIENT_DIR}/shadowsocks.txt"
-    else
-        warning "未配置"
-    fi
-
-    echo
     section "Hysteria2" "$YELLOW"
     echo
     if [[ -f "${MIHOMO_CLIENT_DIR}/hysteria2.txt" ]]; then
@@ -276,6 +252,30 @@ show_client_info(){
             fi
             value "$line"
         done < "${MIHOMO_CLIENT_DIR}/hysteria2.txt"
+    else
+        warning "未配置"
+    fi
+
+    echo
+    section "Shadowsocks" "$YELLOW"
+    echo
+    if [[ -f "${MIHOMO_CLIENT_DIR}/shadowsocks.txt" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" == "SS Link:" ]]; then
+                label " Shadowsocks Link"
+                echo
+                continue
+            fi
+            if [[ "$line" == "Mihomo / Clash:" ]]; then
+                echo
+                divider "$CYAN" "-"
+                echo
+                label " Mihomo / Clash YAML"
+                echo
+                continue
+            fi
+            value "$line"
+        done < "${MIHOMO_CLIENT_DIR}/shadowsocks.txt"
     else
         warning "未配置"
     fi
@@ -443,16 +443,16 @@ show_mihomo_core(){
     echo
     section "协议配置" "$YELLOW"
     echo
-    if [[ -f "${MIHOMO_CLIENT_DIR}/hysteria2.txt" ]]; then
-        kv "Hysteria2       :" "已配置（UDP 跳跃端口位于 20000-49999）"
-    else
-        kv "Hysteria2       :" "未配置"
-    fi
-
     if [[ -f "${MIHOMO_CLIENT_DIR}/vless.txt" ]]; then
         kv "VLESS + TCP + XTLS Vision + REALITY    :" "已配置（UDP 已开启）"
     else
         kv "VLESS + TCP + XTLS Vision + REALITY    :" "未配置"
+    fi
+
+    if [[ -f "${MIHOMO_CLIENT_DIR}/hysteria2.txt" ]]; then
+        kv "Hysteria2       :" "已配置（UDP 跳跃端口位于 20000-49999）"
+    else
+        kv "Hysteria2       :" "未配置"
     fi
 
     if [[ -f "${MIHOMO_CLIENT_DIR}/shadowsocks.txt" ]]; then
@@ -1631,10 +1631,10 @@ mihomo_menu(){
         menu_item "2" "查看 Mihomo 核心"
         menu_item "3" "查看 Mihomo 日志"
         menu_item "4" "TLS 证书申请与管理"
-        menu_item "5" "安装 Hysteria2"
-        menu_item "6" "卸载 Hysteria2"
-        menu_item "7" "安装 VLESS + TCP + XTLS Vision + REALITY"
-        menu_item "8" "卸载 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "5" "安装 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "6" "卸载 VLESS + TCP + XTLS Vision + REALITY"
+        menu_item "7" "安装 Hysteria2"
+        menu_item "8" "卸载 Hysteria2"
         menu_item "9" "安装 Shadowsocks"
         menu_item "10" "卸载 Shadowsocks"
         menu_item "11" "重启 Mihomo"
@@ -1651,10 +1651,10 @@ mihomo_menu(){
             2) show_mihomo_core ;;
             3) show_mihomo_logs ;;
             4) manage_tls_certificate ;;
-            5) configure_mihomo_hysteria2 ;;
-            6) uninstall_mihomo_hysteria2 ;;
-            7) configure_mihomo_vless ;;
-            8) uninstall_mihomo_vless ;;
+            5) configure_mihomo_vless ;;
+            6) uninstall_mihomo_vless ;;
+            7) configure_mihomo_hysteria2 ;;
+            8) uninstall_mihomo_hysteria2 ;;
             9) configure_mihomo_shadowsocks ;;
             10) uninstall_mihomo_shadowsocks ;;
             11) restart_mihomo ;;
