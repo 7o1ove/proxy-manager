@@ -80,27 +80,39 @@ port_in_use(){
 }
 
 random_available_port(){
-    local port
+    local min_port="${1:-30000}"
+    local max_port="${2:-60000}"
+    local port attempts
 
-    while :; do
-        port=$(shuf -i 30000-60000 -n1)
+    for (( attempts = 0; attempts < 1000; attempts++ )); do
+        port=$(shuf -i "${min_port}-${max_port}" -n1)
         port_in_use "$port" || {
             printf "%s" "$port"
-            return
+            return 0
         }
     done
+
+    error "无法在 ${min_port}-${max_port} 范围内找到可用端口" >&2
+    return 1
 }
 
 resolve_port(){
     local port="$1"
+    local min_port="${2:-1}"
+    local max_port="${3:-65535}"
 
     if [[ -z "$port" ]]; then
-        random_available_port
+        random_available_port "$min_port" "$max_port"
         return
     fi
 
     if ! valid_port "$port"; then
         error "端口无效：${port}" >&2
+        return 1
+    fi
+
+    if (( port < min_port || port > max_port )); then
+        error "端口必须在 ${min_port}-${max_port} 范围内：${port}" >&2
         return 1
     fi
 

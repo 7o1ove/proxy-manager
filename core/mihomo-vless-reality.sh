@@ -99,9 +99,9 @@ SERVER_IP=$(
     echo "Unknown"
 )
 
-read -r -p "$(prompt_text "端口（留空随机，输入 0 取消）: ")" PORT
+read -r -p "$(prompt_text "端口（50000-65535，留空随机，输入 0 取消）: ")" PORT
 cancel_input "$PORT" && exit "$INPUT_CANCEL_STATUS"
-PORT=$(resolve_port "$PORT") || exit 1
+PORT=$(resolve_port "$PORT" 50000 65535) || exit 1
 
 while true; do
     read -r -p "$(prompt_text "Reality SNI（默认 icloud.com，输入 0 取消）: ")" SNI_INPUT
