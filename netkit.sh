@@ -352,8 +352,8 @@ remove_mihomo_hysteria2_port_hopping(){
         "${MIHOMO_HY2_HOP_STATE}"
     rmdir /etc/systemd/system/mihomo.service.d >/dev/null 2>&1 || true
     systemctl daemon-reload >/dev/null 2>&1 || true
-    ufw --force delete allow "${hop_start}:${hop_end}/udp" >/dev/null 2>&1 || true
-    ufw --force delete allow "20000:50000/udp" >/dev/null 2>&1 || true
+    remove_ufw_port_rule "${hop_start}:${hop_end}" udp
+    remove_ufw_port_rule "20000:50000" udp
     remove_ufw_port_rule "${listener_port}" udp
 }
 
@@ -774,7 +774,7 @@ ufw_batch_delete_port(){
     local record
     local line
     local rule_number
-    local port
+    local port_spec
     local record_port
     local protocol
     local comment
@@ -801,13 +801,13 @@ ufw_batch_delete_port(){
     fi
 
     while IFS= read -r line; do
-        if [[ "$line" =~ ^\[[[:space:]]*([0-9]+)\][[:space:]]+([0-9]+)(/(tcp|udp))?([[:space:]]|$) ]]; then
+        if [[ "$line" =~ ^\[[[:space:]]*([0-9]+)\][[:space:]]+([0-9]+(:[0-9]+)?)(/(tcp|udp))?([[:space:]]|$) ]]; then
             rule_number="${BASH_REMATCH[1]}"
-            port="${BASH_REMATCH[2]}"
-            protocol="${BASH_REMATCH[4]:-all}"
+            port_spec="${BASH_REMATCH[2]}"
+            protocol="${BASH_REMATCH[5]:-all}"
             comment=""
             [[ "$line" == *"#"* ]] && comment=$(trim_edges "${line#*#}")
-            rule_records+=("${rule_number}|${port}|${protocol}|${comment}")
+            rule_records+=("${rule_number}|${port_spec}|${protocol}|${comment}")
         fi
     done <<< "$status_output"
 
@@ -826,13 +826,13 @@ ufw_batch_delete_port(){
     label " 端口 / 协议 / 注释"
     echo
     for index in "${!ports[@]}"; do
-        port="${ports[$index]}"
+        port_spec="${ports[$index]}"
         details=""
         seen_details=()
 
         for record in "${rule_records[@]}"; do
             IFS='|' read -r rule_number record_port protocol comment <<< "$record"
-            [[ "$record_port" == "$port" ]] || continue
+            [[ "$record_port" == "$port_spec" ]] || continue
 
             descriptor="$protocol"
             [[ -n "$comment" ]] && descriptor+=" · ${comment}"
@@ -842,7 +842,7 @@ ufw_batch_delete_port(){
             fi
         done
 
-        menu_item "$((index + 1))" "${port}  ${details}"
+        menu_item "$((index + 1))" "${port_spec}  ${details}"
     done
 
     echo
@@ -886,8 +886,8 @@ ufw_batch_delete_port(){
     done
 
     for display_index in $(printf '%s\n' "${!selected_indexes[@]}" | sort -n); do
-        port="${ports[$((display_index - 1))]}"
-        success "已删除端口 ${port} 的 UFW 规则。"
+        port_spec="${ports[$((display_index - 1))]}"
+        success "已删除端口 ${port_spec} 的 UFW 规则。"
     done
 
     pause

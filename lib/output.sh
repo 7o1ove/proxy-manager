@@ -53,6 +53,24 @@ valid_port(){
     [[ "$1" =~ ^[0-9]+$ ]] && [[ "$1" -ge 1 ]] && [[ "$1" -le 65535 ]]
 }
 
+valid_ufw_port_spec(){
+    local spec="$1"
+    local start_port end_port
+
+    if valid_port "$spec"; then
+        return 0
+    fi
+
+    if [[ "$spec" =~ ^([0-9]+):([0-9]+)$ ]]; then
+        start_port="${BASH_REMATCH[1]}"
+        end_port="${BASH_REMATCH[2]}"
+        valid_port "$start_port" && valid_port "$end_port" && (( start_port <= end_port ))
+        return
+    fi
+
+    return 1
+}
+
 yaml_number_field(){
     local file="$1"
     local field="$2"
@@ -64,11 +82,37 @@ yaml_number_field(){
 remove_ufw_port_rule(){
     local port="$1"
     local protocol="$2"
+    local status_output line rule_number rule_port rule_protocol
+    local -a delete_rule_numbers=()
 
     [[ -n "$port" ]] || return 0
-    valid_port "$port" || return 0
+    valid_ufw_port_spec "$port" || return 0
+    [[ "$protocol" == "tcp" || "$protocol" == "udp" ]] || return 0
     command -v ufw >/dev/null 2>&1 || return 0
 
+    if status_output=$(ufw status numbered 2>/dev/null); then
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^\[[[:space:]]*([0-9]+)\][[:space:]]+([0-9]+(:[0-9]+)?)(/(tcp|udp))?([[:space:]]|$) ]]; then
+                rule_number="${BASH_REMATCH[1]}"
+                rule_port="${BASH_REMATCH[2]}"
+                rule_protocol="${BASH_REMATCH[5]:-all}"
+                if [[ "$rule_port" == "$port" && "$rule_protocol" == "$protocol" ]]; then
+                    delete_rule_numbers+=("$rule_number")
+                fi
+            fi
+        done <<< "$status_output"
+    fi
+
+    if (( ${#delete_rule_numbers[@]} > 0 )); then
+        mapfile -t delete_rule_numbers < <(
+            printf '%s\n' "${delete_rule_numbers[@]}" | sort -rn -u
+        )
+        for rule_number in "${delete_rule_numbers[@]}"; do
+            ufw --force delete "$rule_number" >/dev/null 2>&1 || true
+        done
+    fi
+
+    # UFW 未启用时 status numbered 不列出规则，保留规则文本删除作为后备。
     ufw --force delete allow "${port}/${protocol}" >/dev/null 2>&1 || true
 }
 

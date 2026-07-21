@@ -438,7 +438,7 @@ restore_old_port_hopping() {
 
 remove_hop_ufw_rule() {
     command -v ufw >/dev/null 2>&1 || return 0
-    ufw --force delete allow "${HOP_START}:${HOP_END}/udp" >/dev/null 2>&1 || true
+    remove_ufw_port_rule "${HOP_START}:${HOP_END}" udp
 }
 
 rollback() {
@@ -510,7 +510,7 @@ remove_old_firewall_rule() {
     if [[ -n "${OLD_HOP_START}" && -n "${OLD_HOP_END}" ]] &&
        [[ "${OLD_HOP_START}-${OLD_HOP_END}" != "${HOP_START}-${HOP_END}" ]] &&
        command -v ufw >/dev/null 2>&1; then
-        ufw --force delete allow "${OLD_HOP_START}:${OLD_HOP_END}/udp" >/dev/null 2>&1 || true
+        remove_ufw_port_rule "${OLD_HOP_START}:${OLD_HOP_END}" udp
     fi
 }
 
