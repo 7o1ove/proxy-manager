@@ -17,13 +17,13 @@
 ## 安装与使用
 
 ```bash
-apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/7o1ove/netkit/main/install.sh)
+apt update && apt install -y curl wget git ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/i7asuna/netkit/main/install.sh)
 ```
 
 安装完成后，可以直接输入：
 
 ```bash
-7o1ove
+asuna
 ```
 
 进入 NetKit 管理菜单。

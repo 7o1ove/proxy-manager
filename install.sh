@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO="https://github.com/7o1ove/netkit.git"
+REPO="https://github.com/i7asuna/netkit.git"
 INSTALL_DIR="/root/netkit"
-COMMAND_NAME="7o1ove"
+COMMAND_NAME="asuna"
 COMMAND_PATH="/usr/local/bin/${COMMAND_NAME}"
 LEGACY_COMMAND_PATH="/usr/local/bin/netkit"
 
@@ -16,6 +16,7 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     cd "$INSTALL_DIR"
 
     echo "==> Force syncing with remote..."
+    git remote set-url origin "$REPO"
     git fetch origin
     git reset --hard origin/main
     git clean -fd
