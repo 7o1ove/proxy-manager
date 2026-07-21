@@ -22,16 +22,16 @@ CERT_FILE="${MIHOMO_DIR}/certs/fullchain.pem"
 KEY_FILE="${MIHOMO_DIR}/certs/private.key"
 DOMAIN_FILE="${MIHOMO_DIR}/certs/domain"
 USERNAME="netkit"
-DEFAULT_UP_MBPS="100"
-DEFAULT_DOWN_MBPS="100"
+DEFAULT_CLIENT_UP_MBPS="100"
+DEFAULT_CLIENT_DOWN_MBPS="100"
 HOP_START="20000"
 HOP_END="50000"
 HOP_INTERVAL="30"
 
 PORT=""
-UP_MBPS=""
-DOWN_MBPS=""
-BANDWIDTH_VALUE=""
+CLIENT_UP_MBPS=""
+CLIENT_DOWN_MBPS=""
+CLIENT_BANDWIDTH_VALUE=""
 PASSWORD=""
 DOMAIN=""
 SERVER_IP=""
@@ -174,31 +174,31 @@ select_listener_port() {
     fi
 }
 
-prompt_bandwidth_value() {
+prompt_client_bandwidth_value() {
     local label="$1"
     local default_value="$2"
     local value=""
 
     while true; do
-        read -r -p "请输入${label}带宽 Mbps（默认 ${default_value}，输入 0 取消）: " value
+        read -r -p "请输入本地客户端${label}带宽 Mbps（默认 ${default_value}，输入 0 取消）: " value
         value="${value:-${default_value}}"
         if [[ "${value}" == "0" ]]; then
             err "操作已取消"
             exit 1
         fi
         if [[ "${value}" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 100000 )); then
-            BANDWIDTH_VALUE="${value}"
+            CLIENT_BANDWIDTH_VALUE="${value}"
             return 0
         fi
         warn "请输入 1 到 100000 之间的整数"
     done
 }
 
-prompt_bandwidth() {
-    prompt_bandwidth_value "上传" "${DEFAULT_UP_MBPS}"
-    UP_MBPS="${BANDWIDTH_VALUE}"
-    prompt_bandwidth_value "下载" "${DEFAULT_DOWN_MBPS}"
-    DOWN_MBPS="${BANDWIDTH_VALUE}"
+prompt_client_bandwidth() {
+    prompt_client_bandwidth_value "上传" "${DEFAULT_CLIENT_UP_MBPS}"
+    CLIENT_UP_MBPS="${CLIENT_BANDWIDTH_VALUE}"
+    prompt_client_bandwidth_value "下载" "${DEFAULT_CLIENT_DOWN_MBPS}"
+    CLIENT_DOWN_MBPS="${CLIENT_BANDWIDTH_VALUE}"
 }
 
 read_old_port() {
@@ -236,9 +236,6 @@ write_protocol_config() {
         echo "    listen: 0.0.0.0"
         echo "    users:"
         echo "      ${USERNAME}: ${yaml_password}"
-        echo "    up: ${UP_MBPS}"
-        echo "    down: ${DOWN_MBPS}"
-        echo "    ignore-client-bandwidth: false"
         echo "    masquerade: \"\""
         echo "    alpn:"
         echo "      - h3"
@@ -375,8 +372,8 @@ write_client_info() {
         echo "  ports: \"${HOP_START}-${HOP_END}\""
         echo "  hop-interval: ${HOP_INTERVAL}"
         echo "  password: ${yaml_password}"
-        echo "  up: \"${UP_MBPS} Mbps\""
-        echo "  down: \"${DOWN_MBPS} Mbps\""
+        echo "  up: \"${CLIENT_UP_MBPS} Mbps\""
+        echo "  down: \"${CLIENT_DOWN_MBPS} Mbps\""
         echo "  sni: ${yaml_domain}"
         echo "  skip-cert-verify: false"
         echo "  alpn:"
@@ -401,8 +398,8 @@ show_result() {
     kv "Listen Port  :" "${PORT}/UDP"
     kv "Hop Interval :" "${HOP_INTERVAL} 秒"
     kv "Password     :" "${PASSWORD}"
-    kv "Upload       :" "${UP_MBPS} Mbps"
-    kv "Download     :" "${DOWN_MBPS} Mbps"
+    kv "Client Upload  :" "${CLIENT_UP_MBPS} Mbps"
+    kv "Client Download:" "${CLIENT_DOWN_MBPS} Mbps"
     echo
     label " Hysteria2 Link"
     value "${hy2_link}"
@@ -432,7 +429,7 @@ main() {
     show_dns_warning
     read_old_port
     select_listener_port
-    prompt_bandwidth
+    prompt_client_bandwidth
     PASSWORD="$(openssl rand -hex 32)"
     backup_configs
     write_protocol_config
