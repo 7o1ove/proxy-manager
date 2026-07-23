@@ -22,7 +22,7 @@ MIHOMO_PROTOCOL_DIR="${MIHOMO_DIR}/protocols"
 MIHOMO_CLIENT_DIR="${MIHOMO_DIR}/client"
 MIHOMO_HY2_HOP_SERVICE="mihomo-hysteria2-port-hopping.service"
 MIHOMO_HY2_HOP_START="20000"
-MIHOMO_HY2_HOP_END="49999"
+MIHOMO_HY2_HOP_END="50000"
 MIHOMO_HY2_HOP_STATE="${MIHOMO_DIR}/hysteria2-port-hopping.range"
 IPV6_SYSCTL_CONFIG="/etc/sysctl.d/99-netkit-ipv6.conf"
 SYSCTL_CONFIG="/etc/sysctl.d/99-z-bbr.conf"
@@ -450,7 +450,7 @@ show_mihomo_core(){
     fi
 
     if [[ -f "${MIHOMO_CLIENT_DIR}/hysteria2.txt" ]]; then
-        kv "Hysteria2       :" "已配置（UDP 跳跃端口位于 20000-49999）"
+        kv "Hysteria2       :" "已配置（UDP 跳跃端口位于 20000-50000）"
     else
         kv "Hysteria2       :" "未配置"
     fi
@@ -1265,17 +1265,27 @@ system_tuning(){
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = ${congestion_control}
 
-net.netfilter.nf_conntrack_max = 32768
-net.netfilter.nf_conntrack_udp_timeout = 30
-net.netfilter.nf_conntrack_udp_timeout_stream = 180
-net.netfilter.nf_conntrack_tcp_timeout_established = 86400
+net.core.netdev_max_backlog = 2048
+net.core.somaxconn = 1024
 
 net.core.rmem_max = 4194304
 net.core.wmem_max = 4194304
 
-net.ipv4.tcp_fastopen = 0
-net.ipv4.tcp_ecn = 2
+net.ipv4.tcp_rmem = 4096 131072 4194304
+net.ipv4.tcp_wmem = 4096 65536 4194304
+
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_window_scaling = 1
 net.ipv4.tcp_mtu_probing = 1
+net.ipv4.tcp_slow_start_after_idle = 0
+
+net.ipv4.tcp_max_syn_backlog = 2048
+
+net.netfilter.nf_conntrack_max = 32768
+net.netfilter.nf_conntrack_udp_timeout = 30
+net.netfilter.nf_conntrack_udp_timeout_stream = 180
+net.netfilter.nf_conntrack_tcp_timeout_established = 3600
 
 vm.swappiness = 10
 EOF
@@ -1287,15 +1297,22 @@ EOF
     section "调优后参数" "$YELLOW"
     kv "default_qdisc                 :" "$(sysctl -n net.core.default_qdisc 2>/dev/null || echo unknown)"
     kv "tcp_congestion_control        :" "$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo unknown)"
+    kv "netdev_max_backlog            :" "$(sysctl -n net.core.netdev_max_backlog 2>/dev/null || echo unknown)"
+    kv "somaxconn                     :" "$(sysctl -n net.core.somaxconn 2>/dev/null || echo unknown)"
+    kv "rmem_max                      :" "$(sysctl -n net.core.rmem_max 2>/dev/null || echo unknown)"
+    kv "wmem_max                      :" "$(sysctl -n net.core.wmem_max 2>/dev/null || echo unknown)"
+    kv "tcp_rmem                      :" "$(sysctl -n net.ipv4.tcp_rmem 2>/dev/null || echo unknown)"
+    kv "tcp_wmem                      :" "$(sysctl -n net.ipv4.tcp_wmem 2>/dev/null || echo unknown)"
+    kv "tcp_fastopen                  :" "$(sysctl -n net.ipv4.tcp_fastopen 2>/dev/null || echo unknown)"
+    kv "tcp_sack                      :" "$(sysctl -n net.ipv4.tcp_sack 2>/dev/null || echo unknown)"
+    kv "tcp_window_scaling            :" "$(sysctl -n net.ipv4.tcp_window_scaling 2>/dev/null || echo unknown)"
+    kv "tcp_mtu_probing               :" "$(sysctl -n net.ipv4.tcp_mtu_probing 2>/dev/null || echo unknown)"
+    kv "tcp_slow_start_after_idle     :" "$(sysctl -n net.ipv4.tcp_slow_start_after_idle 2>/dev/null || echo unknown)"
+    kv "tcp_max_syn_backlog           :" "$(sysctl -n net.ipv4.tcp_max_syn_backlog 2>/dev/null || echo unknown)"
     kv "nf_conntrack_max              :" "$(sysctl -n net.netfilter.nf_conntrack_max 2>/dev/null || echo unknown)"
     kv "nf_conntrack_udp_timeout      :" "$(sysctl -n net.netfilter.nf_conntrack_udp_timeout 2>/dev/null || echo unknown)"
     kv "nf_conntrack_udp_stream       :" "$(sysctl -n net.netfilter.nf_conntrack_udp_timeout_stream 2>/dev/null || echo unknown)"
     kv "nf_conntrack_tcp_established  :" "$(sysctl -n net.netfilter.nf_conntrack_tcp_timeout_established 2>/dev/null || echo unknown)"
-    kv "rmem_max                      :" "$(sysctl -n net.core.rmem_max 2>/dev/null || echo unknown)"
-    kv "wmem_max                      :" "$(sysctl -n net.core.wmem_max 2>/dev/null || echo unknown)"
-    kv "tcp_fastopen                  :" "$(sysctl -n net.ipv4.tcp_fastopen 2>/dev/null || echo unknown)"
-    kv "tcp_ecn                       :" "$(sysctl -n net.ipv4.tcp_ecn 2>/dev/null || echo unknown)"
-    kv "tcp_mtu_probing               :" "$(sysctl -n net.ipv4.tcp_mtu_probing 2>/dev/null || echo unknown)"
     kv "swappiness                    :" "$(sysctl -n vm.swappiness 2>/dev/null || echo unknown)"
     pause
 }

@@ -25,7 +25,7 @@ DOMAIN_FILE="${MIHOMO_DIR}/certs/domain"
 USERNAME="netkit"
 DEFAULT_MASQUERADE_URL="https://www.bing.com"
 HOP_MIN="20000"
-HOP_MAX="49999"
+HOP_MAX="50000"
 HOP_START="${HOP_MIN}"
 HOP_END="${HOP_MAX}"
 HOP_INTERVAL="30"
@@ -63,7 +63,7 @@ install_dependencies() {
     local missing=()
     local package
 
-    for package in curl openssl coreutils iproute2 iptables; do
+    for package in curl openssl coreutils iproute2 nftables; do
         if ! dpkg -s "${package}" >/dev/null 2>&1; then
             missing+=("${package}")
         fi
@@ -357,7 +357,7 @@ install_port_hopping() {
     cat > "${HOP_SERVICE_FILE}" <<EOF
 [Unit]
 Description=Mihomo Hysteria2 UDP Port Hopping
-After=network-online.target
+After=network-online.target nftables.service
 Before=mihomo.service
 PartOf=mihomo.service
 

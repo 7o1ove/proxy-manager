@@ -8,6 +8,9 @@ RANGE_START="${2:-}"
 RANGE_END="${3:-}"
 TARGET_PORT="${4:-}"
 RULE_COMMENT="netkit-mihomo-hysteria2-port-hopping"
+NFT_FAMILY="inet"
+NFT_TABLE="netkit_hysteria2"
+NFT_CHAIN="prerouting"
 
 valid_port() {
     [[ "$1" =~ ^[0-9]+$ ]] && (( $1 >= 1 && $1 <= 65535 ))
@@ -29,42 +32,52 @@ if ! valid_port "${RANGE_START}" || ! valid_port "${RANGE_END}" || ! valid_port 
     exit 2
 fi
 
-RULE=(
-    -p udp
-    --dport "${RANGE_START}:${RANGE_END}"
-    -m comment --comment "${RULE_COMMENT}"
-    -j REDIRECT --to-ports "${TARGET_PORT}"
-)
-
-add_rule() {
-    local command="$1"
-
-    if ! "${command}" -w -t nat -C PREROUTING "${RULE[@]}" >/dev/null 2>&1; then
-        "${command}" -w -t nat -A PREROUTING "${RULE[@]}"
+delete_native_table() {
+    if nft list table "${NFT_FAMILY}" "${NFT_TABLE}" >/dev/null 2>&1; then
+        nft delete table "${NFT_FAMILY}" "${NFT_TABLE}"
     fi
 }
 
-delete_rule() {
-    local command="$1"
+delete_legacy_nft_rules() {
+    local family handle
 
-    while "${command}" -w -t nat -C PREROUTING "${RULE[@]}" >/dev/null 2>&1; do
-        "${command}" -w -t nat -D PREROUTING "${RULE[@]}" || break
+    for family in ip ip6; do
+        while read -r handle; do
+            [[ -n "${handle}" ]] || continue
+            nft delete rule "${family}" nat PREROUTING handle "${handle}" >/dev/null 2>&1 || true
+        done < <(
+            nft -a list chain "${family}" nat PREROUTING 2>/dev/null |
+                sed -nE "/comment \"${RULE_COMMENT}\".*# handle ([0-9]+)/s/.*# handle ([0-9]+).*/\1/p"
+        )
     done
 }
 
-if [[ "${ACTION}" == "start" ]]; then
-    if ! command -v iptables >/dev/null 2>&1; then
-        echo "未找到 iptables，无法启用 Hysteria2 端口跳跃" >&2
-        exit 1
-    fi
+add_native_table() {
+    delete_native_table
 
-    add_rule iptables
-    if command -v ip6tables >/dev/null 2>&1 && ip6tables -w -t nat -L PREROUTING -n >/dev/null 2>&1; then
-        add_rule ip6tables
+    if ! nft -f - <<EOF
+table ${NFT_FAMILY} ${NFT_TABLE} {
+    chain ${NFT_CHAIN} {
+        type nat hook prerouting priority -100; policy accept;
+        udp dport ${RANGE_START}-${RANGE_END} counter redirect to :${TARGET_PORT} comment "${RULE_COMMENT}"
+    }
+}
+EOF
+    then
+        delete_native_table >/dev/null 2>&1 || true
+        return 1
     fi
+}
+
+if ! command -v nft >/dev/null 2>&1; then
+    echo "未找到 nft，无法管理 Hysteria2 端口跳跃" >&2
+    exit 1
+fi
+
+if [[ "${ACTION}" == "start" ]]; then
+    add_native_table
+    delete_legacy_nft_rules
 else
-    command -v iptables >/dev/null 2>&1 && delete_rule iptables
-    if command -v ip6tables >/dev/null 2>&1; then
-        delete_rule ip6tables
-    fi
+    delete_native_table
+    delete_legacy_nft_rules
 fi
