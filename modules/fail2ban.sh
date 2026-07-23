@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Sourced by netkit.sh; do not execute directly.
+
+install_fail2ban(){
+    header "安装 Fail2Ban"
+    ensure_apt_package "fail2ban"
+
+    local ssh_port
+    ssh_port=$(current_ssh_port)
+
+    cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1
+bantime = 604800
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+port = ${ssh_port}
+backend = systemd
+maxretry = 3
+bantime = 604800
+EOF
+
+    systemctl enable fail2ban
+    systemctl restart fail2ban
+    success "Fail2Ban 已安装并启动。"
+    pause
+}
+
+show_fail2ban_status(){
+    header "SSHD 状态"
+    fail2ban-client status sshd
+    pause
+}
+
+uninstall_fail2ban(){
+    header "卸载 Fail2Ban"
+    warning "正在卸载 Fail2Ban..."
+    systemctl stop fail2ban 2>/dev/null || true
+    systemctl disable fail2ban 2>/dev/null || true
+    apt purge -y fail2ban
+    apt autoremove -y
+    success "Fail2Ban 已卸载。"
+    pause
+}
+
+fail2ban_unban_ip(){
+    header "解封 SSHD IP"
+    local ip
+
+    read -r -p "$(prompt_text "请输入要解封的 IP（输入 0 取消）: ")" ip
+    cancel_input "$ip" && return
+
+    if [[ -z "$ip" ]]; then
+        error "IP 不能为空。"
+        pause
+        return
+    fi
+
+    fail2ban-client set sshd unbanip "$ip"
+    success "已从 sshd jail 解封 IP: ${ip}"
+    pause
+}
+
+fail2ban_menu(){
+    while true; do
+        header "Fail2Ban 管理"
+        menu_item "1" "安装 Fail2Ban"
+        menu_item "2" "查看 SSHD 状态"
+        menu_item "3" "解封 SSHD IP"
+        menu_item "4" "卸载 Fail2Ban"
+        echo
+        menu_item "0" "返回"
+        echo
+        read -r -p "$(prompt_text "请选择: ")" choice
+        choice=${choice:-0}
+
+        case "$choice" in
+            1) install_fail2ban ;;
+            2) show_fail2ban_status ;;
+            3) fail2ban_unban_ip ;;
+            4) uninstall_fail2ban ;;
+            0) return ;;
+            *) error "无效选择。"; pause ;;
+        esac
+    done
+}

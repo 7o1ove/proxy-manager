@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Sourced by netkit.sh; do not execute directly.
+
+SWAPFILE="/swapfile"
+
+install_swap(){
+    header "安装虚拟内存"
+    if [[ -n "$(swapon --show)" ]]; then
+        warning "虚拟内存已存在。"
+        pause
+        return
+    fi
+
+    info "正在创建 1G 虚拟内存..."
+    fallocate -l 1G "$SWAPFILE" || dd if=/dev/zero of="$SWAPFILE" bs=1M count=1024
+    chmod 600 "$SWAPFILE"
+    mkswap "$SWAPFILE"
+    swapon "$SWAPFILE"
+    grep -q "^${SWAPFILE}" /etc/fstab || echo "${SWAPFILE} none swap sw 0 0" >> /etc/fstab
+    success "虚拟内存已创建。"
+    pause
+}
+
+delete_swap(){
+    header "删除虚拟内存"
+    warning "正在删除虚拟内存..."
+    swapoff "$SWAPFILE" 2>/dev/null || true
+    sed -i "\#^${SWAPFILE}#d" /etc/fstab
+    rm -f "$SWAPFILE"
+    success "虚拟内存已删除。"
+    pause
+}
+
+show_swap_status(){
+    header "虚拟内存状态"
+
+    if [[ -n "$(swapon --show)" ]]; then
+        swapon --show
+    else
+        warning "当前没有启用虚拟内存。"
+    fi
+
+    echo
+    free -h
+    pause
+}
+
+swap_menu(){
+    while true; do
+        header "虚拟内存管理"
+        menu_item "1" "安装 1G 虚拟内存"
+        menu_item "2" "查看虚拟内存状态"
+        menu_item "3" "删除虚拟内存"
+        echo
+        menu_item "0" "返回"
+        echo
+        read -r -p "$(prompt_text "请选择: ")" choice
+        choice=${choice:-0}
+
+        case "$choice" in
+            1) install_swap ;;
+            2) show_swap_status ;;
+            3) delete_swap ;;
+            0) return ;;
+            *) error "无效选择。"; pause ;;
+        esac
+    done
+}
