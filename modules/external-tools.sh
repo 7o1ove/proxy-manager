@@ -30,6 +30,10 @@ run_ip_quality_test(){
             report_generated=1
         fi
 
+        if (( status == 1 && report_generated == 1 )); then
+            info "未检测到可用的 IPv6，已完成 IPv4 检测。"
+        fi
+
         echo
         read -r -p "$(prompt_text "按 Enter 删除 IP 质量检测脚本...")"
         rm -rf -- "$temp_dir"
