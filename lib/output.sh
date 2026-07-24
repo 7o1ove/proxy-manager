@@ -237,7 +237,7 @@ menu_item(){
     local num="$1"
     local text="$2"
 
-    echo -e "${GREEN}${num}.${RESET} ${WHITE}${text}${RESET}"
+    printf "%b%2s.%b %b%s%b\n" "$GREEN" "$num" "$RESET" "$WHITE" "$text" "$RESET"
 }
 
 menu_action(){
